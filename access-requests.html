@@ -1,0 +1,40 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Access requests | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+ var esc=App.esc,filter='pending',missing=null;
+ var ST={pending:['warn','Pending'],approved:['ok','Approved'],rejected:['bad','Rejected']};
+ function linkUrl(l){return App.absUrl('signup.html?t='+encodeURIComponent(l.token));}
+ App.mount({page:'access-requests',title:'Access requests',roles:['admin'],render:function(ctx){
+  var all=App.requests(),list=all.filter(function(r){return filter==='all'||r.status===filter;}),links=App.links();
+  function n(s){return all.filter(function(r){return s==='all'||r.status===s;}).length;}
+  var rows=list.map(function(r){var st=ST[r.status],act='',cid=App.matchCompany(r.company),lk=r.linkId?links.filter(function(l){return l.id===r.linkId;})[0]:null;
+   if(r.status==='pending')act='<button class="btn btn-s btn-p" data-approve="'+r.id+'">Approve</button> <button class="btn btn-s btn-d" data-reject="'+r.id+'">Reject</button>';
+   else if(r.status==='approved'){
+    if(lk&&App.linkState(lk)==='unused')act='<button class="btn btn-s" data-copy="'+lk.id+'">Copy link</button> <a class="btn btn-s" href="signup-links.html?company='+(cid||'')+'&request='+r.id+'">New link</a>';
+    else if(cid)act='<a class="btn btn-s btn-p" href="signup-links.html?company='+encodeURIComponent(cid)+'&request='+encodeURIComponent(r.id)+'">Create sign-up link</a>';
+    else act='<button class="btn btn-s btn-p" data-missing="'+r.id+'">Create sign-up link</button>';
+   }
+   var match=cid?'<div class="mt-0.5"><span class="bd ok">In Companies</span></div>':'<div class="mt-0.5"><span class="bd warn">Not in Companies</span></div>';
+   return '<tr><td><div class="font-medium">'+esc(r.name)+'</div><div class="text-xs text-cap">'+esc(r.email)+'</div></td><td>'+esc(r.company)+match+'</td><td class="max-w-xs text-mut">'+esc(r.message||'—')+'</td><td class="whitespace-nowrap">'+esc(r.date)+'</td><td>'+App.badge(st[0],st[1])+(lk?'<div class="mt-0.5 text-xs text-cap">Link '+esc(lk.id)+'</div>':'')+'</td><td class="whitespace-nowrap text-right">'+act+'</td></tr>';}).join('');
+  return '<div class="mb-8 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">Access requests</h1><p class="mt-2 text-sm text-mut">People who asked for access from the login page. Approving does not create an account: create a company-based sign-up link next and share it with them.</p></div><div class="seg" role="group" aria-label="Filter">'+['pending','approved','rejected','all'].map(function(s){return '<button type="button" data-f="'+s+'" aria-pressed="'+(s===filter)+'">'+s[0].toUpperCase()+s.slice(1)+' ('+n(s)+')</button>';}).join('')+'</div></div>'+
+   '<section class="card overflow-x-auto"><table class="tbl min-w-[860px]"><tr><th>Person</th><th>Company</th><th>Message</th><th>Received</th><th>Status</th><th class="text-right">Actions</th></tr>'+rows+'</table>'+(list.length?'':'<p class="p-5 text-sm text-cap">No requests in this list.</p>')+'</section>';
+ },extra:function(){
+  return '<div id="missing-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="mm-t"><div class="card w-full max-w-md"><div class="border-b px-6 py-4"><h2 id="mm-t" class="font-semibold">This company is not in your Companies list</h2></div><p id="mm-text" class="p-6 text-sm text-mut"></p><div class="flex justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" data-close>Cancel</button><a id="mm-go" class="btn btn-p" href="companies.html?add=1">Add company first</a></div></div></div>';
+ },after:function(ctx,main,ov){
+  var all=App.requests();
+  function set(id,s){
+   if(!App.can.admin()){App.toast('Only administrators can review requests.','err');return false;}
+   var r=all.filter(function(x){return x.id===id;})[0];if(!r||r.status!=='pending')return false;
+   r.status=s;r.reviewedBy=App.me().name;r.reviewedOn=App.today();App.saveRequests(all);return true;}
+  main.querySelectorAll('[data-f]').forEach(function(b){b.addEventListener('click',function(){filter=b.dataset.f;ctx.refresh();});});
+  main.querySelectorAll('[data-approve]').forEach(function(b){b.addEventListener('click',function(){if(!set(b.dataset.approve,'approved'))return;filter='approved';ctx.refresh();App.toast('Approved. Now create a sign-up link for the company.');});});
+  main.querySelectorAll('[data-reject]').forEach(function(b){b.addEventListener('click',function(){if(!set(b.dataset.reject,'rejected'))return;ctx.refresh();App.toast('Request rejected');});});
+  main.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){var l=App.links().filter(function(x){return x.id===b.dataset.copy;})[0];if(l)App.copy(linkUrl(l));});});
+  main.querySelectorAll('[data-missing]').forEach(function(b){b.addEventListener('click',function(){
+   var r=all.filter(function(x){return x.id===b.dataset.missing;})[0];if(!r)return;
+   ov.querySelector('#mm-text').textContent='“'+r.company+'” does not match any company on the Companies page, so a sign-up link cannot be created for it yet. Add the company first; you will return here to create the link.';
+   ov.querySelector('#mm-go').href='companies.html?add=1&name='+encodeURIComponent(r.company)+'&request='+encodeURIComponent(r.id);App.openModal('missing-modal');});});
+  var nb=document.querySelector('.navcount[data-count="access-requests.html"]');if(nb){var c=App.pending();if(c)nb.textContent=c;else nb.remove();}
+ }});
+})();
+</script></body></html>

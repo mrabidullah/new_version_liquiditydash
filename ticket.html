@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ticket | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script><script>
+var D=App.D,esc=App.esc;
+ var ST=App.TICKET_STATUS;
+ function visible(ctx){return App.tickets().filter(function(t){return ctx.role==='admin'||ctx.allowed.indexOf(t.company)>=0;});}
+
+ var id=App.qs('id');
+ function nowStamp(){var d=new Date();return 'Today · '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+ App.mount({page:'ticket',navFor:'tickets.html',title:'Ticket',crumb:'Ticket',roles:['client','multi','admin'],render:function(ctx){
+  var t=visible(ctx).filter(function(x){return x.id===id;})[0];
+  if(!t)return '<div class="card mx-auto mt-10 max-w-lg p-8 text-center"><h1 class="text-xl font-semibold">Ticket not found</h1><p class="mt-2 text-sm text-mut">It may belong to a company you do not have access to.</p><a class="btn btn-p mt-6" href="tickets.html">Back to tickets</a></div>';
+  var admin=ctx.role==='admin',s=ST[t.status];
+  var msgs=t.messages.map(function(m){var mine=admin?m.from==='support':m.from==='client';return '<div class="bubble '+(mine?'me':'')+'"><div class="who"><b class="text-ink">'+esc(m.name)+'</b> &middot; '+esc(m.at)+'</div><p class="whitespace-pre-wrap text-sm">'+esc(m.text)+'</p></div>';}).join('');
+  return '<a href="tickets.html" class="text-sm text-mut hover:underline">&larr; All tickets</a><div class="mb-6 mt-3 flex flex-wrap items-start justify-between gap-3"><div><h1 class="page-title !text-3xl">'+esc(t.subject)+'</h1><p class="mt-2 flex flex-wrap items-center gap-2 text-sm text-mut"><span class="mono">#'+t.id+'</span>'+App.badge(s[0],s[1])+'<span class="chip">'+esc(D.COMPANIES[t.company].name)+'</span><span>Opened by '+esc(t.by)+' on '+esc(t.created)+'</span></p></div><button id="toggle" class="btn">'+(t.status==='done'?'Reopen ticket':'Mark as resolved')+'</button></div>'+
+   '<section class="space-y-3" aria-label="Conversation">'+msgs+'</section>'+
+   '<form id="reply" class="card mt-6 p-4"><label class="lbl" for="rp">'+(t.status==='done'?'Reply (this reopens the ticket)':'Your reply')+'</label><textarea id="rp" class="inp h-28" placeholder="Write a message" required></textarea><div class="mt-3 flex justify-end"><button class="btn btn-p">Send reply</button></div></form>';
+ },after:function(ctx,main){
+  var all=App.tickets(),t=all.filter(function(x){return x.id===id;})[0];if(!t||ctx.role!=='admin'&&ctx.allowed.indexOf(t.company)<0)return;
+  main.querySelector('#toggle').addEventListener('click',function(){t.status=t.status==='done'?'ours':'done';t.updated=nowStamp().replace('Today ·','Today,');App.saveTickets(all);ctx.refresh();App.toast(t.status==='done'?'Ticket marked as resolved':'Ticket reopened');});
+  main.querySelector('#reply').addEventListener('submit',function(e){e.preventDefault();
+   var admin=ctx.role==='admin',text=main.querySelector('#rp').value.trim();if(!text)return;
+   t.messages.push({from:admin?'support':'client',name:admin?ctx.s.name+' · Deltablock support':ctx.s.name,at:nowStamp(),text:text});
+   t.status=admin?'client':'ours';t.updated=nowStamp().replace('Today ·','Today,');App.saveTickets(all);ctx.refresh();App.toast('Reply sent');window.scrollTo(0,document.body.scrollHeight);});
+ }});
+</script></body></html>

@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Support | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,tab='active',fStatus='all',fCo='all';
+var ST=App.TICKET_STATUS;
+function stamp(){var d=new Date();return 'Today · '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+App.mount({page:'tickets',title:'Support',roles:['client','multi','admin'],render:function(ctx){
+ var admin=ctx.role==='admin',all=App.tickets().filter(function(t){return admin||ctx.allowed.indexOf(t.company)>=0;}),act=all.filter(function(t){return t.status!=='done';}),done=all.filter(function(t){return t.status==='done';});
+ var list=tab==='active'?act:done,multi=admin||ctx.allowed.length>1;
+ if(admin){list=all.filter(function(t){return (fStatus==='all'||t.status===fStatus)&&(fCo==='all'||t.company===fCo);});}
+ var rows=list.map(function(t){var s=ST[t.status]||['dr',t.status];return '<tr class="hover:bg-hov"><td class="mono"><a class="underline" href="ticket.html?id='+t.id+'">#'+t.id+'</a></td><td><a class="font-medium hover:underline" href="ticket.html?id='+t.id+'">'+esc(t.subject)+'</a><div class="text-xs text-cap">'+t.messages.length+' message'+(t.messages.length>1?'s':'')+'</div></td>'+(multi?'<td>'+esc(D.COMPANIES[t.company].name)+'</td>':'')+(admin?'<td>'+esc(t.by)+'</td>':'')+'<td>'+esc(t.updated)+'</td><td>'+App.badge(s[0],s[1])+'</td></tr>';}).join('');
+ var cols='<tr><th>Ticket</th><th>Subject</th>'+(multi?'<th>Company</th>':'')+(admin?'<th>Opened by</th>':'')+'<th>Updated</th><th>Status</th></tr>';
+ return '<div class="mb-8 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">'+(admin?'Support tickets':'Support')+'</h1><p class="mt-2 text-sm text-mut">'+(admin?'Requests from all clients.':'Contact support and track your requests.')+'</p></div>'+(admin?'':'<button type="button" class="btn btn-p" data-open="new-ticket">+ New ticket</button>')+'</div>'+
+ '<div class="card">'+(admin?'<div class="flex flex-wrap items-end gap-4 border-b p-4"><label class="text-xs text-cap">Status<select id="f-status" class="inp mt-1 !w-52">'+[['all','All statuses'],['ours',ST.ours[1]],['client',ST.client[1]],['done',ST.done[1]]].map(function(o){return '<option value="'+o[0]+'"'+(o[0]===fStatus?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label><label class="text-xs text-cap">Company<select id="f-co" class="inp mt-1 !w-52"><option value="all">All companies</option>'+D.ORDER.map(function(i){return '<option value="'+i+'"'+(i===fCo?' selected':'')+'>'+esc(D.COMPANIES[i].name)+'</option>';}).join('')+'</select></label><p class="ml-auto text-sm text-mut" aria-live="polite">'+list.length+' of '+all.length+' ticket'+(all.length===1?'':'s')+'</p>'+((fStatus!=='all'||fCo!=='all')?'<button type="button" class="btn btn-s" id="f-clear">Clear filters</button>':'')+'</div>':'<div class="tabs" role="tablist"><button role="tab" data-tab="active" aria-selected="'+(tab==='active')+'">Active <span class="bd dr !px-1.5">'+act.length+'</span></button><button role="tab" data-tab="done" aria-selected="'+(tab==='done')+'">Completed <span class="bd dr !px-1.5">'+done.length+'</span></button></div>')+'<div class="overflow-x-auto"><table class="tbl min-w-[640px]">'+cols+rows+'</table>'+(list.length?'':'<p class="p-5 text-sm text-cap">'+(admin?'No tickets match these filters.':'Nothing here.')+'</p>')+'</div></div>';
+},extra:function(ctx){
+ if(ctx.role==='admin')return '';
+ var pre=App.qs('subject')||'';
+ return '<div id="new-ticket" class="modal" role="dialog" aria-modal="true" aria-labelledby="nt"><form id="nt-form" class="card w-full max-w-lg"><div class="border-b px-6 py-4"><h2 id="nt" class="font-semibold">New support ticket</h2></div><div class="space-y-4 p-6"><div><label class="lbl" for="nt-sub">Subject</label><input id="nt-sub" class="inp" required value="'+esc(pre)+'"></div>'+(ctx.allowed.length>1?'<div><label class="lbl" for="nt-co">Company</label><select id="nt-co" class="inp">'+ctx.allowed.map(function(i){return '<option value="'+i+'"'+(i===ctx.co.id?' selected':'')+'>'+esc(D.COMPANIES[i].name)+'</option>';}).join('')+'</select></div>':'')+'<div><label class="lbl" for="nt-msg">Message</label><textarea id="nt-msg" class="inp h-32" required placeholder="Describe what you need"></textarea></div></div><div class="flex justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-p">Open ticket</button></div></form></div>';
+},after:function(ctx,main,ov){
+ var fs=main.querySelector('#f-status'),fc=main.querySelector('#f-co'),fx=main.querySelector('#f-clear');
+ if(fs)fs.addEventListener('change',function(){fStatus=fs.value;ctx.refresh();});
+ if(fc)fc.addEventListener('change',function(){fCo=fc.value;ctx.refresh();});
+ if(fx)fx.addEventListener('click',function(){fStatus='all';fCo='all';ctx.refresh();});
+ main.querySelectorAll('[data-tab]').forEach(function(b){b.addEventListener('click',function(){tab=b.dataset.tab;ctx.refresh();});});
+ var f=ov.querySelector('#nt-form');if(!f)return;
+ f.addEventListener('submit',function(e){e.preventDefault();
+  if(ctx.role==='guest'||ctx.role==='admin'){App.toast('Your account cannot open tickets.','err');return;}
+  var all=App.tickets(),n=Math.max.apply(null,all.map(function(t){return +t.id.split('-')[1];}).concat([1052]))+1,co=f.querySelector('#nt-co')?f.querySelector('#nt-co').value:ctx.co.id,id='DB-'+String(n).padStart(4,'0');
+  if(ctx.allowed.indexOf(co)<0){App.toast('You do not have access to that company.','err');return;}
+  all.unshift({id:id,subject:f.querySelector('#nt-sub').value.trim(),company:co,by:ctx.s.name,status:'ours',created:App.today(),updated:'Today, '+stamp().slice(8),messages:[{from:'client',name:ctx.s.name,at:stamp(),text:f.querySelector('#nt-msg').value.trim()}]});
+  App.saveTickets(all);location.href='ticket.html?id='+id;});
+ if(App.qs('new'))App.openModal('new-ticket');
+}});
+})();
+</script></body></html>

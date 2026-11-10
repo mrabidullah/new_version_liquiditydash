@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Profile reviews | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,filter='pending',target=null,decision=null;
+var ST={pending:['warn','Pending'],approved:['ok','Approved'],rejected:['bad','Rejected'],withdrawn:['dr','Withdrawn']};
+function fname(k){var f=App.PROFILE_FIELDS.filter(function(x){return x[0]===k;})[0];return f?f[1]:k;}
+function show(v){return v===''||v==null?'—':v;}
+App.mount({page:'profile-reviews',title:'Profile reviews',roles:['admin'],render:function(ctx){
+ var all=App.profileReviews(),list=all.filter(function(r){return filter==='all'?true:r.status===filter;});
+ function n(s){return all.filter(function(r){return s==='all'||r.status===s;}).length;}
+ var cards=list.map(function(r){var co=D.COMPANIES[r.company],st=ST[r.status]||['dr',r.status],pend=r.status==='pending',ks=Object.keys(r.changes);
+  var rows=ks.map(function(k){var cur=pend?(co?co[k]:''):r.changes[k].from,stale=pend&&String(cur==null?'':cur)!==String(r.changes[k].from==null?'':r.changes[k].from);
+   return '<tr><td>'+esc(fname(k))+'</td><td class="text-mut">'+esc(show(cur))+(stale?' <span class="bd warn">Changed since submission</span>':'')+'</td><td><b>'+esc(show(r.changes[k].to))+'</b></td></tr>';}).join('');
+  var acts=pend?'<div class="flex gap-2"><button class="btn btn-s btn-p" data-approve="'+r.id+'">Approve</button><button class="btn btn-s btn-d" data-reject="'+r.id+'">Reject</button></div>':'<span class="text-xs text-cap">'+(r.status==='withdrawn'?'Withdrawn by the client':esc(st[1])+(r.reviewedLabel?' on '+esc(r.reviewedLabel):'')+(r.reviewedBy?' by '+esc(r.reviewedBy.name):''))+'</span>';
+  return '<section class="card mb-5 overflow-x-auto"><div class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4"><div><div class="flex flex-wrap items-center gap-2"><h2 class="font-semibold">'+esc(co?co.name:r.company)+'</h2>'+App.badge(st[0],st[1])+'<span class="mono text-xs text-cap">'+esc(r.id)+'</span></div><p class="mt-1 text-xs text-cap">Submitted '+esc(r.submittedLabel)+' by '+esc((r.by&&r.by.name)||'unknown')+((r.by&&r.by.email)?' ('+esc(r.by.email)+')':'')+' &middot; '+ks.length+' changed field'+(ks.length>1?'s':'')+(r.note?' &middot; Note: '+esc(r.note):'')+'</p></div>'+acts+'</div><table class="tbl min-w-[560px]"><tr><th>Field</th><th>'+(pend?'Current approved':'Approved before')+'</th><th>Proposed</th></tr>'+rows+'</table></section>';}).join('');
+ return '<div class="mb-8 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">Profile reviews</h1><p class="mt-2 text-sm text-mut">Company profile changes submitted by clients. The approved profile stays live until you approve a request.</p></div><div class="seg" role="group" aria-label="Filter">'+['pending','approved','rejected','all'].map(function(s){return '<button type="button" data-f="'+s+'" aria-pressed="'+(s===filter)+'">'+s[0].toUpperCase()+s.slice(1)+' ('+n(s)+')</button>';}).join('')+'</div></div>'+(cards||'<section class="card p-6 text-sm text-cap">No requests in this list.</section>');
+},extra:function(){
+ return '<div id="review-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="rv-t"><form id="review-form" class="card w-full max-w-md"><div class="border-b px-6 py-4"><h2 id="rv-t" class="font-semibold"></h2></div><div class="space-y-3 p-6"><p id="rv-text" class="text-sm text-mut"></p><div><label class="lbl" for="rv-note">Note <span class="font-normal text-cap">(optional)</span></label><textarea id="rv-note" class="inp h-20" maxlength="300"></textarea></div></div><div class="flex justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" data-close>Cancel</button><button id="rv-go" class="btn btn-p">Confirm</button></div></form></div>';
+},after:function(ctx,main,ov){
+ main.querySelectorAll('[data-f]').forEach(function(b){b.addEventListener('click',function(){filter=b.dataset.f;ctx.refresh();});});
+ function ask(id,d){var r=App.profileReviews().filter(function(x){return x.id===id;})[0];if(!r)return;target=id;decision=d;var co=D.COMPANIES[r.company];
+  ov.querySelector('#rv-t').textContent=(d==='approve'?'Approve':'Reject')+' changes for '+(co?co.name:r.company);
+  ov.querySelector('#rv-text').textContent=d==='approve'?'The proposed values replace the approved company profile immediately.':'The approved profile stays as it is. The client sees the request as rejected.';
+  ov.querySelector('#rv-note').value='';App.openModal('review-modal');}
+ main.querySelectorAll('[data-approve]').forEach(function(b){b.addEventListener('click',function(){ask(b.dataset.approve,'approve');});});
+ main.querySelectorAll('[data-reject]').forEach(function(b){b.addEventListener('click',function(){ask(b.dataset.reject,'reject');});});
+ ov.querySelector('#review-form').addEventListener('submit',function(e){e.preventDefault();
+  var res=App.reviewProfile(target,decision,ov.querySelector('#rv-note').value);App.closeModals();
+  if(!res.ok){App.toast(res.error,'err');ctx.refresh();return;}
+  App.toast(decision==='approve'?'Changes approved and applied to the company profile':'Request rejected. The approved profile is unchanged.');
+  var nb=document.querySelector('.navcount[data-count="profile-reviews.html"]');if(nb){var c=App.profilePending();if(c)nb.textContent=c;else nb.remove();}
+  ctx.refresh();});
+}});
+})();
+</script></body></html>

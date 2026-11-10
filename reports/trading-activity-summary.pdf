@@ -1,0 +1,49 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 779 >>
+stream
+0.04 0.07 0.13 rg 0 0 612 792 re f
+0.95 0.72 0.02 rg 48 682 516 3 re f
+0.95 0.95 0.93 rg
+BT /F2 22 Tf 48 744 Td (DELTABLOCK) Tj ET
+BT /F2 17 Tf 48 704 Td (Trading Activity Summary) Tj ET
+BT /F2 10 Tf 48 660 Td (REPORT DETAILS) Tj ET
+BT /F1 11 Tf 48 636 Td (Reporting period: Q3 2026) Tj ET
+BT /F1 11 Tf 48 614 Td (Published: 02 Oct 2026) Tj ET
+BT /F1 11 Tf 48 592 Td (Status: Published) Tj ET
+BT /F2 10 Tf 48 540 Td (SAMPLE REPORT PREVIEW) Tj ET
+BT /F1 11 Tf 48 516 Td (This downloadable preview contains report metadata only.) Tj ET
+BT /F1 11 Tf 48 496 Td (It does not contain approved financial results or market data.) Tj ET
+BT /F1 11 Tf 48 476 Td (Replace this preview with the approved company report before use.) Tj ET
+BT /F1 9 Tf 48 54 Td (Deltablock  |  Company 1) Tj ET
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000000321 00000 n 
+0000000396 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+1225
+%%EOF

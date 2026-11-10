@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>My account | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,perrs={},aerrs={},pdraft=null;
+function fld(id,label,type,val,err,extra){return '<div><label class="lbl" for="'+id+'">'+label+'</label><input id="'+id+'" name="'+id+'" type="'+type+'" class="inp" value="'+esc(val==null?'':val)+'" '+(extra||'')+(err?' aria-invalid="true"':'')+' aria-describedby="'+id+'-err"><p class="field-err" id="'+id+'-err" role="alert"'+(err?'':' hidden')+'>'+esc(err||'')+'</p></div>';}
+App.mount({page:'account',title:'My account',roles:['client','multi','guest','admin'],render:function(ctx){
+ var m=App.me(),p=m.person;
+ if(!p)return '<div class="card mx-auto mt-10 max-w-lg p-8 text-center"><h1 class="text-xl font-semibold">Account not found</h1><p class="mt-2 text-sm text-mut">Your account record could not be found. Sign in again.</p><a class="btn btn-p mt-6" href="login.html">Back to sign in</a></div>';
+ var nm=App.splitName(p),d=pdraft||{first:nm[0],last:nm[1],email:p.email};
+ var role=App.typeLabel(p)+(p.type!=='admin'&&p.type!=='guest'&&m.manages.length?' · company manager':'');
+ var cos=p.type==='admin'?'All companies (administrator)':(m.companies.length?m.companies.map(function(i){return D.COMPANIES[i].name;}).join(', '):'None');
+ return '<div class="mb-8"><h1 class="page-title">My account</h1><p class="mt-2 text-sm text-mut">Your personal details and password. These changes only affect your own account.</p></div>'+
+ '<div class="grid gap-5 lg:grid-cols-2"><section class="card p-6"><h2 class="font-semibold">Personal information</h2><form id="pf" class="mt-4 space-y-4" novalidate><div class="grid gap-4 sm:grid-cols-2">'+fld('first','First name','text',d.first,aerrs.first,'autocomplete="given-name"')+fld('last','Last name','text',d.last,aerrs.last,'autocomplete="family-name"')+'</div>'+fld('email','Email address','email',d.email,aerrs.email,'autocomplete="email"')+'<div class="flex justify-end"><button class="btn btn-p">Save details</button></div></form></section>'+
+ '<section class="card p-6"><h2 class="font-semibold">Change password</h2><form id="pw" class="mt-4 space-y-4" novalidate>'+fld('cur','Current password','password','',perrs.current,'autocomplete="current-password"')+fld('new','New password','password','',perrs.next,'autocomplete="new-password"')+fld('conf','Confirm new password','password','',perrs.confirm,'autocomplete="new-password"')+'<p class="text-xs text-cap">At least 12 characters. Prototype: sign-in does not check passwords; until you change it, the current password is <span class="mono">'+esc(App.PROTOTYPE_PASSWORD)+'</span>.</p><div class="flex justify-end"><button class="btn btn-p">Update password</button></div></form></section></div>'+
+ '<section class="card mt-5 p-6"><h2 class="font-semibold">Access</h2><p class="mb-4 mt-1 text-sm text-cap">Your role and company access are set by your company manager or Deltablock. You cannot change them here.</p><dl class="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-3"><div><dt class="text-xs text-cap">Role</dt><dd class="mt-1 font-medium">'+esc(role)+'</dd></div><div class="sm:col-span-2"><dt class="text-xs text-cap">Companies</dt><dd class="mt-1 font-medium">'+esc(cos)+'</dd></div></dl></section>';
+},after:function(ctx,main){
+ var pf=main.querySelector('#pf'),pw=main.querySelector('#pw');if(!pf)return;
+ function focusBad(){var b=main.querySelector('[aria-invalid]');if(b)b.focus();}
+ pf.addEventListener('submit',function(e){e.preventDefault();
+  var d={first:pf.first.value,last:pf.last.value,email:pf.email.value},res=App.updateAccount(d);
+  if(!res.ok){aerrs=res.errors||{};pdraft=d;ctx.refresh();App.toast(res.error,'err');focusBad();return;}
+  aerrs={};pdraft=null;try{sessionStorage.setItem('dbt-acct-saved','1');}catch(x){}location.reload();});
+ pw.addEventListener('submit',function(e){e.preventDefault();
+  var res=App.changePassword(pw.cur.value,pw['new'].value,pw.conf.value);
+  if(!res.ok){perrs=res.errors||{};ctx.refresh();App.toast(res.error,'err');focusBad();return;}
+  perrs={};ctx.refresh();App.toast('Password updated');});
+ try{if(sessionStorage.getItem('dbt-acct-saved')){sessionStorage.removeItem('dbt-acct-saved');App.toast('Your details were saved');}}catch(x){}
+}});
+})();
+</script></body></html>

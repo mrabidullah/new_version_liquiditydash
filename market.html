@@ -1,0 +1,90 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Market activity | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,rng=App.store.get('range','1M');
+var RANGES={'1W':'Last 7 days','1M':'Last 30 days','1Y':'Last 12 months'};
+if(!RANGES[rng])rng='1M';
+var N=364,W=640,L=52,R=628,DEL='#F2B705';
+function fmtK(n){return n>=1000?(n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,'')+'k':String(Math.round(n));}
+function split(r,n,total,lo,hi,wts){ /* integers that add up exactly to total */
+ var w=[],sum=0,i;for(i=0;i<n;i++){w.push((wts?wts[i]:1)*(lo+r()*(hi-lo)));sum+=w[i];}
+ var out=[],acc=0;for(i=0;i<n;i++){out.push(Math.floor(total*w[i]/sum));acc+=out[i];}
+ var rem=total-acc;i=0;while(rem>0){out[i%n]++;rem--;i++;}return out;}
+/* One consistent daily model per company. Segment totals are pinned to the same KPI figures the Overview uses
+   (24h, 7d, 30d, since contract start), so volumes, shares and chart bars always agree. */
+function model(co){
+ var K=D.KPI[co.id],sub=App.subs()[co.id],r=App.rng(App.seedOf(co.id)+4242),price=App.series(co.id,N,5),tot=new Array(N),del=new Array(N),i;
+ var daysSince=sub&&sub.startIso?Math.round((Date.parse(D.TODAY)-Date.parse(sub.startIso))/86400000):N;
+ var s0=Math.max(0,N-1-daysSince);
+ var d24=Math.round(K['24h'].vol*K['24h'].share/100),d7=Math.round(K['7d'].vol*K['7d'].share/100),d30=Math.round(K['30d'].vol*K['30d'].share/100),dS=Math.round(K.since.vol*K.since.share/100);
+ var segs=[[N-1,N-1,K['24h'].vol,d24],[N-7,N-2,K['7d'].vol-K['24h'].vol,d7-d24],[N-30,N-8,K['30d'].vol-K['7d'].vol,d30-d7]];
+ if(s0<N-30)segs.push([s0,N-31,K.since.vol-K['30d'].vol,dS-d30]);
+ segs.forEach(function(g){var n=g[1]-g[0]+1,t=split(r,n,g[2],0.6,1.4),dl=split(r,n,g[3],0.8,1.2,t);for(var k=0;k<n;k++){tot[g[0]+k]=t[k];del[g[0]+k]=dl[k];}});
+ var avg=co.vol30/30;for(i=0;i<(s0<N-30?s0:N-30);i++){tot[i]=Math.round(avg*(0.5+r()*1.0));del[i]=0;}
+ var days=[];for(i=0;i<N;i++)days.push({iso:App.addIso(D.TODAY,i-(N-1)),p:price[i].p,tot:tot[i],del:del[i],oth:tot[i]-del[i]});
+ return {days:days,d24:d24,d30:d30,dS:dS,K:K,sub:sub};
+}
+function buckets(m,r){
+ var d=m.days,out=[],i,j;
+ function mk(arr){var t=0,dl=0;arr.forEach(function(x){t+=x.tot;dl+=x.del;});var last=arr[arr.length-1];return {iso:last.iso,from:arr[0].iso,p:last.p,tot:t,del:dl,oth:t-dl};}
+ if(r==='1Y'){for(i=0;i<52;i++){out.push(mk(d.slice(i*7,i*7+7)));}}
+ else{var n=r==='1W'?7:30;d.slice(-n).forEach(function(x){out.push(mk([x]));});}
+ return out;
+}
+function dt(iso,o){return new Intl.DateTimeFormat('en-GB',o||{day:'2-digit',month:'short',timeZone:'UTC'}).format(new Date(iso+'T00:00:00Z'));}
+function chart(co,m,r){
+ var b=buckets(m,r),n=b.length,i,g='';
+ var pmn=Math.min.apply(null,b.map(function(x){return x.p;})),pmx=Math.max.apply(null,b.map(function(x){return x.p;})),pad=(pmx-pmn)*0.15||0.01;pmn-=pad;pmx+=pad;
+ var vm=Math.max.apply(null,b.map(function(x){return x.tot;}))*1.08,PT=16,PB=116,VT=162,VB=262;
+ function X(k){return L+(R-L)*(k+0.5)/n;}
+ function Y(p){return PT+(1-(p-pmn)/(pmx-pmn))*(PB-PT);}
+ for(i=0;i<4;i++){var pv=pmx-(pmx-pmn)*i/3,y=Y(pv);g+='<line x1="'+L+'" x2="'+R+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" class="c-grid"/><text x="4" y="'+(y+3).toFixed(1)+'" class="c-txt">'+pv.toFixed(3)+'</text>';}
+ var line='';b.forEach(function(x,k){line+=(k?'L':'M')+X(k).toFixed(1)+','+Y(x.p).toFixed(1);});
+ g+='<text x="'+L+'" y="10" class="c-txt">MARKET PRICE PER SHARE (EUR)</text><path d="'+line+'" class="c-line"/>';
+ g+='<text x="'+L+'" y="'+(VT-10)+'" class="c-txt">'+(r==='1Y'?'WEEKLY':'DAILY')+' VOLUME · SHARES (BAR HEIGHT = TOTAL MARKET VOLUME)</text>';
+ for(i=0;i<3;i++){var v=vm*i/2,yy=VB-(VB-VT)*i/2;g+='<line x1="'+L+'" x2="'+R+'" y1="'+yy.toFixed(1)+'" y2="'+yy.toFixed(1)+'" class="c-grid"/><text x="4" y="'+(yy+3).toFixed(1)+'" class="c-txt">'+fmtK(v)+'</text>';}
+ var bw=Math.max(3,Math.min(18,(R-L)/n*0.66)),H=VB-VT;
+ b.forEach(function(x,k){
+  var hd=x.del>0?Math.max(1.6,x.del/vm*H):0,ho=x.oth/vm*H,yd=VB-hd,yo=yd-ho,sh=x.tot?(x.del/x.tot*100):0,when=r==='1Y'?dt(x.from)+' – '+dt(x.iso):dt(x.iso,{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'});
+  g+='<g><title>'+when+' · total '+App.num(x.tot)+' shares · Deltablock '+App.num(x.del)+' ('+sh.toFixed(1)+'%) · other participants '+App.num(x.oth)+' · price €'+x.p.toFixed(3)+'</title><rect x="'+(X(k)-bw/2).toFixed(1)+'" y="'+yo.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+ho.toFixed(1)+'" class="c-oth"/>'+(hd?'<rect x="'+(X(k)-bw/2).toFixed(1)+'" y="'+yd.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hd.toFixed(1)+'" class="c-del"/>':'')+'</g>';
+ });
+ g+='<line x1="'+L+'" x2="'+R+'" y1="'+VB+'" y2="'+VB+'" class="c-grid"/>';
+ var step=n<=7?1:Math.ceil(n/6),lab='';
+ b.forEach(function(x,k){if(k%step===0||k===n-1){if(k===n-1&&k%step!==0&&(k-Math.floor(k/step)*step)<step/2)return;lab+='<text x="'+X(k).toFixed(1)+'" y="280" text-anchor="middle" class="c-txt">'+(r==='1Y'?dt(x.iso,{month:'short',timeZone:'UTC'}):dt(x.iso))+'</text>';}});
+ var tot=0,dl=0;b.forEach(function(x){tot+=x.tot;dl+=x.del;});
+ var svg='<svg viewBox="0 0 '+W+' 292" class="w-full" role="img" aria-label="Daily market volume split into Deltablock and other participants, with market price. '+RANGES[r]+': total '+App.num(tot)+' shares, Deltablock '+App.num(dl)+' shares."><style>.c-grid{stroke:var(--line)}</style>'+g+lab+'</svg>';
+ return {svg:svg,tot:tot,del:dl,b:b};
+}
+function ring(label,share,sub){var dash=(share/100*289).toFixed(1);return '<div class="flex items-center gap-4"><div class="relative shrink-0"><svg viewBox="0 0 120 120" class="h-28 w-28 -rotate-90" role="img" aria-label="'+esc(label)+': Deltablock '+share+' percent of market volume"><circle cx="60" cy="60" r="46" fill="none" stroke-width="16" class="c-grid"/><circle cx="60" cy="60" r="46" fill="none" stroke-width="16" stroke-dasharray="'+dash+' 289" stroke-linecap="round" stroke="'+DEL+'"/></svg><div class="absolute inset-0 grid place-items-center text-lg font-semibold">'+share.toFixed(1)+'%</div></div><div><div class="text-sm font-semibold">'+esc(label)+'</div><div class="mt-1 text-xs text-cap">'+sub+'</div></div></div>';}
+function segbar(parts,h){return '<div class="flex overflow-hidden rounded-full bg-hov" style="height:'+(h||14)+'px" role="presentation">'+parts.map(function(p){return '<i style="display:block;width:'+p[0]+'%;background:'+p[1]+'"></i>';}).join('')+'</div>';}
+function sprRow(label,v,tgt,max){var ok=v<=tgt;return '<div class="mt-4"><div class="flex items-center justify-between gap-2 text-sm"><span>'+label+'</span><span class="flex items-center gap-2"><b class="mono">'+v.toFixed(1)+' bps</b>'+App.badge(ok?'ok':'warn',ok?'Target met':'Above target')+'</span></div><div class="relative mt-2 h-3 rounded-full bg-hov"><i class="absolute left-0 top-0 block h-3 rounded-full" style="width:'+Math.min(100,v/max*100).toFixed(1)+'%;background:'+(ok?'var(--ok)':'var(--warn)')+'"></i><i class="absolute -top-1 block h-5 w-0.5" style="left:'+(tgt/max*100).toFixed(1)+'%;background:var(--ink)" title="Target '+tgt+' bps"></i></div></div>';}
+App.mount({page:'market',title:'Market activity',roles:['client','multi','guest','admin'],scoped:true,needsData:true,render:function(ctx){
+ var co=ctx.co,m=model(co),K=m.K,M=D.MARKET[co.id]||{marketTrades30:Math.round(co.trades30/0.03),buyPct:50},c=chart(co,m,rng);
+ var first=c.b[0].p,last=c.b[c.b.length-1].p,chg=(last/first-1)*100;
+ var vol24=K['24h'].vol,vol30=K['30d'].vol,volS=K.since.vol,dTr=co.trades30,mTr=M.marketTrades30,oTr=mTr-dTr,trShare=dTr/mTr*100;
+ var buyT=Math.round(dTr*M.buyPct/100),sellT=dTr-buyT,buyV=Math.round(m.d30*M.buyPct/100),sellV=m.d30-buyV,sellPct=100-M.buyPct;
+ var smax=Math.max(co.sprTarget*1.6,K['30d'].spr*1.15,K['24h'].spr*1.15);
+ var head='<div class="mb-6 flex flex-wrap items-end justify-between gap-4"><div><h1 class="page-title">Market activity</h1><p class="mt-2 text-sm text-mut">What Deltablock trades in <b class="text-ink">'+esc(co.name)+'</b> next to everything else traded on '+esc(co.exch)+' &middot; illustrative sample data</p></div><div class="flex flex-wrap items-center gap-3"><span class="mono text-lg font-semibold">&euro;'+co.price.toFixed(3)+'</span><span class="text-xs text-cap">market price</span>'+App.badge(chg>=0?'ok':'warn',(chg>=0?'+':'−')+Math.abs(chg).toFixed(1)+'% '+RANGES[rng].toLowerCase())+'</div></div>';
+ var legend='<div class="mt-2 flex flex-wrap items-center gap-5 text-xs text-mut"><span class="inline-flex items-center gap-2"><i class="h-3 w-3 rounded-sm" style="background:'+DEL+'"></i>Deltablock volume</span><span class="inline-flex items-center gap-2"><i class="h-3 w-3 rounded-sm" style="background:var(--oth)"></i>Other market participants</span><span class="inline-flex items-center gap-2"><i class="h-0.5 w-4" style="background:var(--chart)"></i>Market price per share (&euro;)</span></div>';
+ var chartCard='<section id="chart-card" class="card mb-6 p-5 md:p-6" aria-labelledby="pv"><div class="mb-4 flex flex-wrap items-start justify-between gap-3"><div><h2 id="pv" class="font-semibold">Deltablock within total market volume</h2>'+legend+'</div><div class="flex flex-wrap items-center gap-2"><div class="seg" role="group" aria-label="Range">'+Object.keys(RANGES).map(function(k){return '<button type="button" data-r="'+k+'" aria-pressed="'+(k===rng)+'">'+k+'</button>';}).join('')+'</div><button type="button" class="btn btn-s" data-save="png">Save PNG</button><button type="button" class="btn btn-s" data-save="pdf">Print / PDF</button></div></div><div class="overflow-x-auto"><div id="plot" class="min-w-[560px]">'+c.svg+'</div></div>'+
+  '<dl class="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-4"><div><dt class="text-xs text-cap">'+RANGES[rng]+' &middot; total market volume</dt><dd class="mono font-semibold">'+App.num(c.tot)+' shares</dd></div><div><dt class="text-xs text-cap">Deltablock</dt><dd class="mono font-semibold">'+App.num(c.del)+' shares</dd></div><div><dt class="text-xs text-cap">Other participants</dt><dd class="mono font-semibold">'+App.num(c.tot-c.del)+' shares</dd></div><div><dt class="text-xs text-cap">Deltablock share</dt><dd class="mono font-semibold">'+(c.del/c.tot*100).toFixed(1)+'%</dd></div></dl></section>';
+ var shareCard='<article class="card p-5 md:p-6 lg:col-span-2"><div class="metric-label">Share of market volume</div><div class="mt-4 grid gap-6 sm:grid-cols-2">'+ring('Last 24 hours',K['24h'].share,App.num(Math.round(vol24*K['24h'].share/100))+' of '+App.num(vol24)+' shares')+ring('Since contract start',K.since.share,App.num(m.dS)+' of '+App.num(volS)+' shares &middot; from '+esc(m.sub&&m.sub.start?m.sub.start:'start'))+'</div></article>';
+ var volCard='<article class="card p-5 md:p-6"><div class="metric-label">Deltablock trading volume</div><div class="metric mt-3">'+App.num(m.dS)+' <small class="metric-unit">shares</small></div><div class="mt-1 text-xs text-cap">Since contract start</div><div class="mt-4 space-y-1 border-t pt-3 text-sm"><div class="flex justify-between"><span class="text-mut">Last 30 days</span><b class="mono">'+App.num(m.d30)+'</b></div><div class="flex justify-between"><span class="text-mut">Last 24 hours</span><b class="mono">'+App.num(m.d24)+'</b></div></div></article>';
+ var tradesCard='<article class="card p-5 md:p-6"><div class="metric-label">Trades &middot; last 30 days</div><div class="mt-3 flex items-baseline justify-between gap-2"><div class="metric !text-2xl">'+App.num(dTr)+'</div><div class="text-sm text-mut">of '+App.num(mTr)+' market trades</div></div><div class="mt-4">'+segbar([[Math.max(trShare,1.5),DEL],[100-Math.max(trShare,1.5),'var(--oth)']])+'</div><div class="mt-3 grid grid-cols-2 gap-2 text-sm"><div><span class="inline-flex items-center gap-2 text-xs text-cap"><i class="dot" style="background:'+DEL+'"></i>Deltablock</span><div class="mono font-semibold">'+App.num(dTr)+' <span class="text-xs font-normal text-cap">('+trShare.toFixed(1)+'%)</span></div></div><div><span class="inline-flex items-center gap-2 text-xs text-cap"><i class="dot" style="background:var(--oth)"></i>Other participants</span><div class="mono font-semibold">'+App.num(oTr)+' <span class="text-xs font-normal text-cap">('+(100-trShare).toFixed(1)+'%)</span></div></div></div></article>';
+ var bsCard='<article class="card p-5 md:p-6"><div class="metric-label">Buy vs sell &middot; last 30 days</div><div class="mt-4 flex justify-between text-sm font-semibold"><span style="color:var(--buy)">Buy '+M.buyPct.toFixed(1)+'%</span><span style="color:var(--sell)">Sell '+sellPct.toFixed(1)+'%</span></div><div class="relative mt-2">'+segbar([[M.buyPct,'var(--buy)'],[sellPct,'var(--sell)']],16)+'<i class="absolute -top-1 block h-6 w-0.5" style="left:50%;background:var(--ink)" title="Even split"></i></div><div class="mt-3 grid grid-cols-2 gap-2 text-sm"><div><div class="mono font-semibold">'+App.num(buyT)+' trades</div><div class="text-xs text-cap">'+App.num(buyV)+' shares bought</div></div><div class="text-right"><div class="mono font-semibold">'+App.num(sellT)+' trades</div><div class="text-xs text-cap">'+App.num(sellV)+' shares sold</div></div></div></article>';
+ var sprOk=K['30d'].spr<=co.sprTarget;
+ var sprCard='<article class="card p-5 md:p-6"><div class="flex items-start justify-between gap-2"><div class="metric-label">Spread vs contracted target</div>'+App.badge(sprOk?'ok':'warn',sprOk?'Target met':'Target not met')+'</div><div class="mt-2 text-sm text-mut">Market spread, target at most <b class="text-ink">'+co.sprTarget+' bps</b> (marker)</div>'+sprRow('Last 30 days average',K['30d'].spr,co.sprTarget,smax)+sprRow('Last 24 hours',K['24h'].spr,co.sprTarget,smax)+'</article>';
+ return head+chartCard+'<h2 class="mb-3 text-xl font-semibold">Trading metrics</h2><div class="mb-5 grid gap-5 lg:grid-cols-3">'+shareCard+volCard+'</div><div class="grid gap-5 md:grid-cols-3">'+tradesCard+bsCard+sprCard+'</div><p class="mt-4 text-xs text-cap">Deltablock volume plus other participants always equals total market volume. Sample figures; Deltablock trade counts match Trade history. Market totals include Deltablock&rsquo;s own trades.</p>';
+},after:function(ctx,main){
+ main.querySelectorAll('[data-r]').forEach(function(b){b.addEventListener('click',function(){rng=b.dataset.r;App.store.set('range',rng);ctx.refresh();});});
+ main.querySelector('[data-save=pdf]').addEventListener('click',function(){window.print();});
+ main.querySelector('[data-save=png]').addEventListener('click',function(){
+  var svg=main.querySelector('#plot svg').cloneNode(true);
+  var st=document.createElementNS('http://www.w3.org/2000/svg','style');st.textContent='.c-grid{stroke:#E8E6E0}.c-txt{fill:#5F6B80;font:10px Inter,sans-serif}.c-line{stroke:#172B5E;fill:none;stroke-width:2}.c-oth{fill:#6F86B3}.c-del{fill:#F2B705}';
+  var bg=document.createElementNS('http://www.w3.org/2000/svg','rect');bg.setAttribute('width',W);bg.setAttribute('height','292');bg.setAttribute('fill','#fff');svg.insertBefore(bg,svg.firstChild);svg.insertBefore(st,svg.firstChild);svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  var img=new Image();img.onload=function(){var c=document.createElement('canvas');c.width=W*2;c.height=584;c.getContext('2d').drawImage(img,0,0,W*2,584);var a=document.createElement('a');a.download='market-activity-'+ctx.co.code.toLowerCase()+'-'+rng.toLowerCase()+'.png';a.href=c.toDataURL('image/png');a.click();};
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));});
+}});
+})();
+</script></body></html>

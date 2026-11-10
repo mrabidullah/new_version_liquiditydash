@@ -1,0 +1,57 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Peer comparison | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,gi=0,added=[],period=App.store.get('peer-period','3m');
+/* Sample data: the peer groups and company KPIs only exist for 30 days, so the three periods are derived from them with fixed
+   per-period factors (peers) and a small deterministic company drift. Same inputs always give the same picture. */
+var PER={'3m':{label:'Last 3 months',f:[0.97,1.04,0.99,0.96]},'6m':{label:'Last 6 months',f:[0.93,1.08,0.98,0.92]},'1y':{label:'Last 1 year',f:[0.88,1.13,0.97,0.88]}};
+if(!PER[period])period='3m';
+var KEYS=['vol','spr','tim','turn'],COLORS=['#2F6FD0','#8456C4','#1F8A70'],GOLD='#F2B705';
+function pdata(id,g,per){
+ var k=D.KPI[id]['30d'],f=PER[per].f,r=App.rng(App.seedOf(id)+per.charCodeAt(0)*7+per.length),out=[];
+ App.MEASURES.forEach(function(m,i){
+  var drift=1+(f[i]-1)*0.8+(r()-0.5)*0.06,v=k[KEYS[i]]*drift;if(i===2)v=Math.min(99.9,v);
+  out.push({v:v,lo:g.lo[i]*f[i],hi:g.hi[i]*f[i],med:g.median[i]*f[i]});
+ });
+ return out;
+}
+function fmt(i,v){return i===0?App.num(Math.round(v)):i===1?v.toFixed(1)+' bps':i===2?v.toFixed(1)+'%':v.toFixed(2)+'%';}
+function short(i,v){return i===0?(v>=1000?(v/1000).toFixed(v>=100000?0:1)+'k':Math.round(v)):i===1?v.toFixed(1):i===2?v.toFixed(0)+'%':v.toFixed(2)+'%';}
+function state(i,v,med){var d=(v-med)/med;if(Math.abs(d)<0.1)return ['inf','Near median'];var up=d>0;return [(i===1?!up:up)?'ok':'warn',up?'Above median':'Below median'];}
+function ini(n){return String(n).split(/\s+/).map(function(x){return x[0];}).slice(0,2).join('').toUpperCase();}
+function rangeSvg(i,d,co,extra){
+ var W=600,L=24,R=576,pad=(d.hi-d.lo)*0.04,mn=d.lo-pad,mx=d.hi+pad;
+ function X(v){return L+(Math.max(mn,Math.min(mx,v))-mn)/(mx-mn)*(R-L);}
+ var ty=58,th=12,xl=X(d.lo),xh=X(d.hi),xm=X(d.med),xv=X(d.v),out=d.v<d.lo||d.v>d.hi;
+ var svg='<svg viewBox="0 0 '+W+' 112" class="w-full" role="img" aria-label="'+esc(App.MEASURES[i][0])+': lowest '+fmt(i,d.lo)+', median '+fmt(i,d.med)+', highest '+fmt(i,d.hi)+', '+esc(co.name)+' '+fmt(i,d.v)+'">';
+ svg+='<rect x="'+xl.toFixed(1)+'" y="'+ty+'" width="'+(xm-xl).toFixed(1)+'" height="'+th+'" rx="6" style="fill:var(--oth);opacity:.35"/><rect x="'+xm.toFixed(1)+'" y="'+ty+'" width="'+(xh-xm).toFixed(1)+'" height="'+th+'" rx="6" style="fill:var(--oth);opacity:.6"/>';
+ svg+='<line x1="'+xm.toFixed(1)+'" x2="'+xm.toFixed(1)+'" y1="'+(ty-8)+'" y2="'+(ty+th+8)+'" style="stroke:var(--ink);stroke-width:2"/><text x="'+xm.toFixed(1)+'" y="'+(ty+th+24)+'" text-anchor="middle" class="c-txt" style="font-size:11px">Median '+short(i,d.med)+'</text>';
+ svg+='<text x="'+xl.toFixed(1)+'" y="'+(ty+th+24)+'" text-anchor="'+((xm-xl)<90?'start':'start')+'" class="c-txt" style="font-size:11px">Lowest '+short(i,d.lo)+'</text><text x="'+xh.toFixed(1)+'" y="'+(ty+th+24)+'" text-anchor="end" class="c-txt" style="font-size:11px">Highest '+short(i,d.hi)+'</text>';
+ extra.forEach(function(e,k){svg+='<circle cx="'+X(e.v).toFixed(1)+'" cy="'+(ty+th/2)+'" r="7" style="fill:'+COLORS[k%3]+';stroke:var(--surf);stroke-width:2"><title>'+esc(e.name)+' '+fmt(i,e.v)+'</title></circle>';});
+ svg+='<line x1="'+xv.toFixed(1)+'" x2="'+xv.toFixed(1)+'" y1="'+(ty-14)+'" y2="'+ty+'" style="stroke:'+GOLD+';stroke-width:2"/><circle cx="'+xv.toFixed(1)+'" cy="'+(ty+th/2)+'" r="10" style="fill:'+GOLD+';stroke:var(--ink);stroke-width:2"><title>'+esc(co.name)+' '+fmt(i,d.v)+'</title></circle>';
+ var anchor=xv<90?'start':xv>W-90?'end':'middle';
+ svg+='<text x="'+xv.toFixed(1)+'" y="'+(ty-20)+'" text-anchor="'+anchor+'" style="fill:var(--ink);font-size:13px;font-weight:600">'+esc(co.name)+' '+short(i,d.v)+(out?' (outside range)':'')+'</text></svg>';
+ return svg;
+}
+App.mount({page:'comparison',title:'Peer comparison',roles:['client','multi','guest','admin'],scoped:true,needsData:true,render:function(ctx){
+ var co=ctx.co,g=D.PEER_GROUPS[gi];
+ added=added.filter(function(i){return i!==co.id&&ctx.allowed.indexOf(i)>=0&&!!D.KPI[i];});
+ var others=ctx.allowed.filter(function(i){return i!==co.id&&added.indexOf(i)<0&&!!D.KPI[i];});
+ var mine=pdata(co.id,g,period),ex=added.map(function(i){return {id:i,name:D.COMPANIES[i].name,d:pdata(i,g,period)};});
+ var addCtl=others.length||added.length?'<div class="comparison-add-group"><label class="comparison-field comparison-company-field" for="add-co">Compare with<select id="add-co" class="inp mt-1"><option value="">Add company</option>'+others.map(function(i){return '<option value="'+i+'">'+esc(D.COMPANIES[i].name)+'</option>';}).join('')+'</select></label><button id="add" type="button" class="btn btn-p">Add company</button></div>':'';
+ var legend='<div class="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-mut"><span class="inline-flex items-center gap-2"><i class="dot" style="background:'+GOLD+';border:2px solid var(--ink);width:12px;height:12px"></i>'+esc(co.name)+' (selected)</span>'+ex.map(function(e,k){return '<span class="inline-flex items-center gap-2"><i class="dot" style="background:'+COLORS[k%3]+'"></i>'+esc(e.name)+' <button class="text-cap hover:text-ink" data-del="'+e.id+'" aria-label="Remove '+esc(e.name)+'">&times;</button></span>';}).join('')+'<span class="inline-flex items-center gap-2"><i class="h-3.5 w-0.5" style="background:var(--ink)"></i>Peer median</span><span class="inline-flex items-center gap-2"><i class="h-2.5 w-8 rounded-full" style="background:var(--oth);opacity:.5"></i>Peer range, lowest to highest</span></div>';
+ var cards=App.MEASURES.map(function(m,i){
+  var d=mine[i],st=state(i,d.v,d.med),pos=Math.max(0,Math.min(100,(d.v-d.lo)/(d.hi-d.lo)*100));
+  var exTxt=ex.length?'<p class="mt-2 text-xs text-cap">'+ex.map(function(e){return esc(e.name)+': <b class="mono text-ink">'+fmt(i,e.d[i].v)+'</b>';}).join(' &middot; ')+'</p>':'';
+  return '<section class="card p-5 md:p-6"><div class="flex flex-wrap items-start justify-between gap-2"><div><h2 class="font-semibold">'+esc(m[0])+'</h2><p class="text-xs text-cap">'+(i===1?'Lower is better':'Higher is better')+' &middot; '+esc(PER[period].label.toLowerCase())+'</p></div>'+App.badge(st[0],st[1])+'</div><div class="mt-2">'+rangeSvg(i,d,co,ex.map(function(e){return {name:e.name,v:e.d[i].v};}))+'</div><dl class="mt-1 grid grid-cols-2 gap-3 border-t pt-3 text-sm sm:grid-cols-4"><div><dt class="text-xs text-cap">Lowest peer</dt><dd class="mono font-semibold">'+fmt(i,d.lo)+'</dd></div><div><dt class="text-xs text-cap">Median peer</dt><dd class="mono font-semibold">'+fmt(i,d.med)+'</dd></div><div><dt class="text-xs text-cap">Highest peer</dt><dd class="mono font-semibold">'+fmt(i,d.hi)+'</dd></div><div><dt class="text-xs text-cap">'+esc(co.name)+'</dt><dd class="mono font-semibold">'+fmt(i,d.v)+'</dd></div></dl><p class="mt-2 text-xs text-cap">'+esc(co.name)+' sits '+pos.toFixed(0)+'% of the way from the lowest to the highest peer.</p>'+exTxt+'</section>';
+ }).join('');
+ return '<div class="mb-6"><h1 class="page-title">Peer comparison</h1><p class="mt-2 text-sm text-mut">Where '+esc(co.name)+' sits among '+g.n+' peers &middot; '+esc(PER[period].label.toLowerCase())+'</p></div><section class="comparison-toolbar mb-6"><div class="comparison-peer-group"><label class="comparison-field">Peer group<select id="grp" class="inp mt-1">'+D.PEER_GROUPS.map(function(x,i){return '<option value="'+i+'"'+(i===gi?' selected':'')+'>'+esc(x.name)+' &middot; '+x.n+' companies</option>';}).join('')+'</select></label><span class="bd dr comparison-peer-badge">Anonymised peer data</span></div><div><div class="lbl">Period</div><div class="seg" role="group" aria-label="Period">'+Object.keys(PER).map(function(k){return '<button type="button" data-per="'+k+'" aria-pressed="'+(k===period)+'">'+PER[k].label+'</button>';}).join('')+'</div></div>'+addCtl+'<a class="btn comparison-history-link" href="trades.html">View trade history</a></section>'+legend+'<div class="grid gap-5 lg:grid-cols-2">'+cards+'</div><p class="mt-4 text-xs text-cap">Peer statistics are aggregated and anonymised. Company identifiers are not shown. Sample data: the period views are derived from the 30-day peer figures. A position within 10% of the median counts as near median.</p>';
+},after:function(ctx,main){
+ main.querySelector('#grp').addEventListener('change',function(e){gi=+e.target.value;ctx.refresh();});
+ main.querySelectorAll('[data-per]').forEach(function(b){b.addEventListener('click',function(){period=b.dataset.per;App.store.set('peer-period',period);ctx.refresh();});});
+ var b=main.querySelector('#add');if(b)b.addEventListener('click',function(){var v=main.querySelector('#add-co').value;if(v){added.push(v);ctx.refresh();}});
+ main.querySelectorAll('[data-del]').forEach(function(x){x.addEventListener('click',function(){added=added.filter(function(i){return i!==x.dataset.del;});ctx.refresh();});});
+}});
+})();
+</script></body></html>

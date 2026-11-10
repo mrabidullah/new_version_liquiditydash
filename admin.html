@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin overview | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script><script>
+(function(){
+ var D=App.D,esc=App.esc;
+ App.mount({page:'admin',title:'Admin overview',roles:['admin'],render:function(ctx){
+  var req=App.requests().filter(function(r){return r.status==='pending';}),links=App.links(),unused=links.filter(function(l){return App.linkState(l)==='unused';}),expired=links.filter(function(l){return App.linkState(l)==='expired'&&l.status!=='used';}),reviews=App.profileReviews().filter(function(r){return r.status==='pending';}),
+      delayed=D.FEEDS.filter(function(f){return f[5][0]!=='ok';}),tickets=App.tickets().filter(function(t){return t.status!=='done';}),renew=D.ORDER.filter(function(i){var x=App.subs()[i];return !x.none&&App.daysUntil(x.renewIso)<=60;});
+  function tile(label,val,sub,href,cls){return '<a href="'+href+'" class="card block p-5 hover:bg-hov"><div class="text-xs text-cap">'+label+'</div><div class="metric mt-2">'+val+'</div><div class="mt-1 text-xs text-cap">'+sub+'</div></a>';}
+  var todo=[];
+  req.forEach(function(r){todo.push(['inf','Access request from '+r.name+' ('+r.company+')','Review','access-requests.html']);});
+  reviews.forEach(function(r){todo.push(['inf','Profile change for '+(D.COMPANIES[r.company]?D.COMPANIES[r.company].name:r.company)+' is waiting for review','Review','profile-reviews.html']);});
+  expired.forEach(function(l){todo.push(['warn','Sign-up link '+l.id+' ('+l.companies.map(function(i){return D.COMPANIES[i]?D.COMPANIES[i].name:i;}).join(', ')+') expired without being used','New link','signup-links.html']);});
+  delayed.forEach(function(f){todo.push(['warn',D.COMPANIES[f[0]].name+' '+f[1].toLowerCase()+' feed is delayed (latest '+f[2]+')','Data health','data-health.html']);});
+  renew.forEach(function(i){todo.push(['warn',D.COMPANIES[i].name+' subscription renews on '+App.subs()[i].renewal,'Subscriptions','admin-subscriptions.html']);});
+  tickets.filter(function(t){return t.status==='ours';}).forEach(function(t){todo.push(['inf','Ticket '+t.id+' · '+t.subject+' needs our reply','Open','ticket.html?id='+t.id]);});
+  var col={inf:'#2563C9',warn:'#A34A07'};
+  return '<div class="mb-8"><h1 class="page-title">Admin overview</h1><p class="mt-2 text-sm text-mut">What needs attention across all clients today.</p></div>'+
+   '<section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">'+tile('ACCESS REQUESTS',req.length,'Waiting for a decision','access-requests.html')+tile('SIGN-UP LINKS',unused.length,'Unused &middot; '+expired.length+' expired','signup-links.html')+tile('DELAYED FEEDS',delayed.length,'of '+D.FEEDS.length+' feeds','data-health.html')+tile('OPEN TICKETS',tickets.length,tickets.filter(function(t){return t.status==='ours';}).length+' need our reply &middot; '+tickets.filter(function(t){return t.status==='client';}).length+' waiting on client','tickets.html')+'</section>'+
+   '<div class="grid gap-5 lg:grid-cols-3"><section class="card p-5 lg:col-span-2"><h2 class="mb-3 font-semibold">Needs attention</h2><ul>'+todo.map(function(i){return '<li class="flex items-start justify-between gap-3 border-t py-3 text-sm first:border-t-0 first:pt-0"><span class="flex gap-3"><i class="dot mt-1.5" style="background:'+col[i[0]]+'"></i>'+esc(i[1])+'</span><a class="btn btn-s shrink-0" href="'+i[3]+'">'+esc(i[2])+'</a></li>';}).join('')+(todo.length?'':'<li class="text-sm text-cap">Nothing needs attention.</li>')+'</ul></section>'+
+   '<section class="card p-5"><h2 class="mb-3 font-semibold">Quick actions</h2><div class="space-y-2"><a class="btn btn-p w-full" href="signup-links.html">Create a client sign-up link</a><a class="btn w-full" href="companies.html?add=1">Add a company</a><a class="btn w-full" href="companies.html">Open a company workspace</a><a class="btn w-full" href="profile-reviews.html">Review profile changes</a><a class="btn w-full" href="users.html">Manage users</a></div></section></div>';
+ }});
+})();
+</script></body></html>

@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Client sign-up links | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head><body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+ var D=App.D,esc=App.esc,fresh=null,pre=null;
+ var STATUS={unused:['inf','Unused'],used:['ok','Used'],expired:['bad','Expired']};
+ function url(l){return App.absUrl('signup.html?t='+encodeURIComponent(l.token));}
+ function reqCtx(){var id=App.qs('request');return id?App.requests().filter(function(r){return r.id===id;})[0]:null;}
+ function remember(link){var id=App.qs('request');if(!id)return;var rs=App.requests();rs.forEach(function(r){if(r.id===id&&r.status==='approved'){r.linkId=link.id;}});App.saveRequests(rs);}
+ App.mount({page:'signup-links',title:'Client sign-up links',roles:['admin'],render:function(ctx){
+  var links=App.links();
+  if(pre===null){var q=App.qs('company');pre=q&&D.COMPANIES[q]?[q]:[];}
+  var rq=reqCtx(),ctxBanner=rq?'<div class="card mb-6 flex flex-wrap items-center gap-3 bg-[var(--infb)] p-4 text-sm"><span class="bd inf">Access request '+esc(rq.id)+'</span><span class="text-mut">'+(rq.status==='approved'?'Approved request for <b class="text-ink">'+esc(rq.company)+'</b>. Pick the company below and create the link; personal details from the request are not copied into it.':'This request is '+esc(rq.status)+'. Only approved requests should get a link.')+'</span></div>':'';
+  var boxes=D.ORDER.map(function(i){var c=D.COMPANIES[i];return '<label class="check-row"><input type="checkbox" name="lk-co" value="'+i+'"'+(pre.indexOf(i)>=0?' checked':'')+'> '+esc(c.name)+' <span class="ml-auto text-xs text-cap">'+esc(c.exch)+'</span></label>';}).join('');
+  var rows=links.map(function(l){var state=App.linkState(l),st=STATUS[state],act='<div class="flex flex-wrap justify-end gap-1.5">';
+   if(state==='unused')act+='<button class="btn btn-s" data-copy="'+l.id+'">Copy link</button><a class="btn btn-s" href="'+url(l)+'" target="_blank" rel="noopener">Preview</a><button class="btn btn-s btn-d" data-revoke="'+l.id+'">Revoke</button>';
+   if(state==='expired')act+='<button class="btn btn-s btn-p" data-renew="'+l.id+'">Create new link</button>';
+   if(state==='used')act+='<span class="text-xs text-cap">Account created</span>';
+   act+='</div>';
+   return '<tr><td><div class="mono text-xs">'+esc(l.id)+'</div><div class="text-xs text-cap">'+esc(l.token)+'</div></td><td>'+App.chips(l.companies)+'</td><td class="whitespace-nowrap">'+esc(l.created)+'</td><td class="whitespace-nowrap">'+esc(l.expires)+'</td><td>'+App.badge(st[0],st[1])+(l.usedOn?'<div class="mt-0.5 text-xs text-cap">'+esc(l.usedOn)+(l.usedBy?' &middot; '+esc(l.usedBy):'')+'</div>':'')+'</td><td class="text-right">'+act+'</td></tr>';}).join('');
+  var result=fresh?'<div class="card mb-6 border-[#F2B705] p-5"><div class="flex flex-wrap items-center justify-between gap-3"><div><div class="font-semibold">Sign-up link ready</div><p class="text-sm text-cap">Gives access to: '+fresh.companies.map(function(i){return esc(D.COMPANIES[i].name);}).join(', ')+'. Share it with the person who should join; they enter their own name, email and password. Prototype: no email is sent.</p></div><div class="flex gap-2"><button class="btn btn-p" id="copy-fresh">Copy link</button><a class="btn" href="'+url(fresh)+'" target="_blank" rel="noopener">Open</a></div></div><input class="inp mono mt-3 !text-xs" readonly value="'+esc(url(fresh))+'" aria-label="Sign-up link"></div>':'';
+  return '<div class="mb-8"><h1 class="page-title">Client sign-up links</h1><p class="mt-2 text-sm text-mut">A link gives access to the companies you choose. It is not tied to a person: whoever opens it creates their own account. Each link can be used once.</p></div>'+ctxBanner+result+
+   '<section class="card mb-6 p-5"><h2 class="font-semibold">Create a link</h2><form id="lk" class="mt-4 grid gap-4 md:grid-cols-2" novalidate><fieldset><legend class="lbl">Companies this link gives access to</legend><div class="space-y-2">'+boxes+'</div><p class="mt-2 text-xs text-cap">One company makes a single-company client. Several make a multi-company client. A company missing here? <a class="underline" href="companies.html?add=1">Add it first</a>.</p><p class="field-err" id="lk-err" role="alert" hidden></p></fieldset><div><label class="lbl" for="lk-days">Link valid for</label><select id="lk-days" class="inp"><option value="7">7 days</option><option value="14" selected>14 days</option><option value="30">30 days</option></select></div>'+
+   '<div class="flex justify-end md:col-span-2"><button class="btn btn-p">Create link</button></div></form></section>'+
+   '<section class="card overflow-x-auto"><div class="border-b px-5 py-4 font-semibold">All links <span class="font-normal text-cap">('+links.length+')</span></div><table class="tbl min-w-[860px]"><tr><th>Link</th><th>Companies</th><th>Created</th><th>Expires</th><th>Status</th><th class="text-right">Actions</th></tr>'+rows+'</table></section>';
+ },after:function(ctx,main){
+  var links=App.links();
+  function find(id){return links.filter(function(l){return l.id===id;})[0];}
+  main.querySelector('#lk').addEventListener('submit',function(e){e.preventDefault();
+   var cos=[].slice.call(main.querySelectorAll('[name=lk-co]:checked')).map(function(c){return c.value;});
+   var res=App.createLink(cos,+main.querySelector('#lk-days').value),er=main.querySelector('#lk-err');
+   if(!res.ok){er.textContent=res.error;er.hidden=false;App.toast(res.error,'err');return;}
+   remember(res.link);fresh=res.link;pre=[];ctx.refresh();window.scrollTo(0,0);App.toast('Sign-up link created');});
+  main.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){var l=find(b.dataset.copy);if(l)App.copy(url(l));});});
+  main.querySelectorAll('[data-revoke]').forEach(function(b){b.addEventListener('click',function(){var res=App.revokeLink(b.dataset.revoke);if(!res.ok){App.toast(res.error,'err');return;}ctx.refresh();App.toast('Link revoked');});});
+  main.querySelectorAll('[data-renew]').forEach(function(b){b.addEventListener('click',function(){var o=find(b.dataset.renew),res=App.createLink(o.companies,14);if(!res.ok){App.toast(res.error,'err');return;}fresh=res.link;ctx.refresh();window.scrollTo(0,0);App.toast('New link created for the same companies');});});
+  var cf=main.querySelector('#copy-fresh');if(cf)cf.addEventListener('click',function(){App.copy(url(fresh));});
+ }});
+})();
+</script></body></html>

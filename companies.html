@@ -1,0 +1,47 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Companies | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,added=null,opened=false;
+var EXCH=['XETRA','Euronext','Nasdaq','NYSE','LSE','SIX Swiss Exchange','Nasdaq Stockholm'];
+function f(id,label,opts){opts=opts||{};var v=opts.value==null?'':opts.value;
+ return '<div'+(opts.span?' class="md:col-span-2"':'')+'><label class="lbl" for="ac-'+id+'">'+label+(opts.req?' <span class="text-cap">*</span>':'')+'</label><input id="ac-'+id+'" name="'+id+'" class="inp" type="'+(opts.type||'text')+'"'+(opts.list?' list="'+opts.list+'"':'')+(opts.ph?' placeholder="'+esc(opts.ph)+'"':'')+(opts.inputmode?' inputmode="'+opts.inputmode+'"':'')+' value="'+esc(v)+'" autocomplete="off" aria-describedby="ac-'+id+'-err"><p class="field-err" id="ac-'+id+'-err" role="alert" hidden></p></div>';}
+App.mount({page:'companies',title:'Companies',roles:['multi','admin'],render:function(ctx){
+ var admin=ctx.admin,ids=ctx.allowed,subs=App.subs(),withSub=0;
+ ids.forEach(function(i){if(!subs[i].none)withSub++;});
+ var rows=ids.map(function(i){var c=D.COMPANIES[i],s=subs[i];
+  return '<tr><td><strong>'+esc(c.name)+'</strong>'+(c.custom?' <span class="bd dr">New</span>':'')+'<div class="text-xs text-cap">'+esc(c.exch)+' &middot; '+esc(c.code)+'</div></td><td class="mono">'+(c.vol30!=null?App.num(c.vol30)+' <small class="metric-unit">shares</small>':'<span class="text-cap">Not available</span>')+'</td><td class="mono">'+(c.spread30!=null?c.spread30.toFixed(1)+' <small class="metric-unit">bps</small>':'<span class="text-cap">Not available</span>')+'</td><td>'+App.badge(c.feed[0],c.feed[1])+'</td><td>'+App.badge(s.status[0],s.status[1])+'</td><td class="whitespace-nowrap text-right"><button class="btn btn-s" data-open-co="'+i+'">Open</button> <button class="btn btn-s" data-team-co="'+i+'">Team</button></td></tr>';}).join('');
+ var done=added?'<div class="card mb-6 border-[#F2B705] p-5"><div class="flex flex-wrap items-center justify-between gap-3"><div><div class="font-semibold">'+esc(added.name)+' was added</div><p class="text-sm text-cap">Next: create a sign-up link so its first client user can join, or open the workspace and Team.</p></div><div class="flex flex-wrap gap-2"><a class="btn btn-p" href="signup-links.html?company='+encodeURIComponent(added.id)+'">Create sign-up link</a><button class="btn" data-open-co="'+esc(added.id)+'">Open workspace</button><button class="btn" data-team-co="'+esc(added.id)+'">Open Team</button></div></div></div>':'';
+ return '<div class="mb-8 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">Companies</h1><p class="mt-2 text-sm text-mut">'+(admin?'Every company on the platform. Open one to see its workspace as the client sees it.':'A combined view across your companies. Open one to see the workspace for that company.')+'</p></div>'+(admin?'<button type="button" class="btn btn-p" id="add-company-btn">+ Add company</button>':'')+'</div>'+done+
+  '<section class="mb-6 grid gap-4 md:grid-cols-2"><div class="card p-5"><div class="text-xs text-cap">COMPANIES</div><div class="metric mt-2">'+ids.length+'</div><div class="text-xs text-cap">'+withSub+' with an assigned subscription</div></div><div class="card p-5"><div class="text-xs text-cap">LATEST DATA</div><div class="metric mt-2">23 Oct</div><div class="text-xs text-cap">14:32 UTC &middot; Company 1</div></div></section><section class="card overflow-x-auto"><table class="tbl min-w-[720px]"><tr><th>Company</th><th>Volume &middot; 30 days</th><th>Avg spread</th><th>Data status</th><th>Subscription</th><th></th></tr>'+rows+'</table></section>';
+},extra:function(ctx){
+ if(!ctx.admin)return '';
+ var pn=App.qs('add')?(App.qs('name')||''):'';
+ return '<div id="company-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="ac-title"><form id="company-form" class="card modal-scroll w-full max-w-2xl" novalidate><div class="border-b px-6 py-4"><h2 id="ac-title" class="font-semibold">Add company</h2><p class="text-sm text-cap">Create the company first, then a company-based sign-up link. Fields marked * are required.</p></div><div class="p-6"><p class="field-err mb-4" id="ac-form-err" role="alert" hidden></p>'+
+  '<h3 class="mb-3 text-sm font-semibold">Identity</h3><div class="grid gap-x-5 gap-y-4 md:grid-cols-2">'+f('name','Display name',{req:1,value:pn,ph:'Shown in menus and tables'})+f('legal','Legal name',{req:1,ph:'e.g. Helios Power AG'})+f('exch','Stock exchange',{req:1,list:'ac-exch-list'})+'<datalist id="ac-exch-list">'+EXCH.map(function(x){return '<option value="'+x+'">';}).join('')+'</datalist>'+f('code','Ticker or company code',{req:1,ph:'e.g. HLP'})+'</div>'+
+  '<details class="mt-6"><summary class="cursor-pointer text-sm font-semibold">Optional profile details</summary><div class="mt-3 grid gap-x-5 gap-y-4 md:grid-cols-2">'+f('email','Contact email',{type:'email'})+f('phone','Phone',{type:'tel'})+f('address','Address',{span:1})+f('shares','Shares outstanding',{inputmode:'numeric'})+f('float','Free float (shares)',{inputmode:'numeric'})+f('insiders','Held by insiders',{ph:'e.g. 12%'})+f('institutions','Held by institutions',{ph:'e.g. 48%'})+'</div></details>'+
+  '<details class="mt-4"><summary class="cursor-pointer text-sm font-semibold">Optional market data</summary><p class="mt-2 text-xs text-cap">Leave blank if unavailable. Blank values are shown as &ldquo;Not available&rdquo;; nothing is estimated for you.</p><div class="mt-3 grid gap-x-5 gap-y-4 md:grid-cols-2">'+f('price','Share price (EUR)',{inputmode:'decimal'})+f('vol30','Volume, last 30 days (shares)',{inputmode:'numeric'})+f('spread30','Average spread (bps)',{inputmode:'decimal'})+'<div><label class="lbl" for="ac-feed">Data feed status</label><select id="ac-feed" name="feed" class="inp"><option value="none" selected>Not connected</option><option value="ok">Up to date</option><option value="warn">Delayed</option></select></div></div></details></div>'+
+  '<div class="flex justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-p">Add company</button></div></form></div>';
+},after:function(ctx,main,ov){
+ main.querySelectorAll('[data-open-co]').forEach(function(b){b.addEventListener('click',function(){if(!App.switchCompany(b.dataset.openCo)){App.toast('You do not have access to that company.','err');return;}location.href='dashboard.html';});});
+ main.querySelectorAll('[data-team-co]').forEach(function(b){b.addEventListener('click',function(){if(!App.switchCompany(b.dataset.teamCo)){App.toast('You do not have access to that company.','err');return;}location.href='team.html';});});
+ if(!ctx.admin)return;
+ var btn=main.querySelector('#add-company-btn'),form=ov.querySelector('#company-form');
+ btn.addEventListener('click',function(){App.openModal('company-modal');});
+ function clear(){form.querySelectorAll('.field-err').forEach(function(p){p.hidden=true;p.textContent='';});form.querySelectorAll('[aria-invalid]').forEach(function(i){i.removeAttribute('aria-invalid');});}
+ form.addEventListener('submit',function(e){e.preventDefault();clear();
+  var d={};[].slice.call(form.elements).forEach(function(el){if(el.name)d[el.name]=el.value;});
+  var res=App.createCompany(d);
+  if(!res.ok){
+   var first=null;Object.keys(res.errors||{}).forEach(function(k){var p=form.querySelector('#ac-'+k+'-err'),i=form.querySelector('#ac-'+k);if(p){p.textContent=res.errors[k];p.hidden=false;}if(i){i.setAttribute('aria-invalid','true');if(!first)first=i;
+    var det=i.closest('details');if(det)det.open=true;}});
+   var fe=form.querySelector('#ac-form-err');fe.textContent=res.error;fe.hidden=false;if(first)first.focus();return;}
+  added=res.company;App.closeModals();form.reset();
+  var rq=App.qs('request');
+  if(rq){location.href='signup-links.html?company='+encodeURIComponent(added.id)+'&request='+encodeURIComponent(rq);return;}
+  ctx.refresh();window.scrollTo(0,0);App.toast(added.name+' added to Companies');
+ });
+ if(App.qs('add')&&!opened){opened=true;App.openModal('company-modal');}
+}});
+})();
+</script></body></html>

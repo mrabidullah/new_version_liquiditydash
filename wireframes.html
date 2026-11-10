@@ -1,0 +1,71 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Screen map | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc;
+var NOTES={client:'One company (or several, then it behaves like the multi-company client). Joins through a company-based sign-up link. Sees the same Team as everyone else on that company; can manage it only if made a company manager.',
+ multi:'Several companies behind one login. Lands on the company directory, then opens a company. The company switcher in the top bar changes every page, including the Team.',
+ guest:'Invited from a Team page. Read-only and limited to the invited companies: Overview, Market activity, Trade history, Peer comparison, Reports and Company profile. No Statements, Team, Subscription or Support pages, in the menu or by direct URL.',
+ admin:'Deltablock staff. Manages companies, users, sign-up links, access requests, profile reviews and subscriptions, and can open any company workspace and Team.'};
+var ORDER=['client','multi','guest','admin'];
+var PAGES=[
+ ['dashboard.html','Overview','Client, guest, admin (scoped)','Headline numbers, peers, Deltablock contribution (no trading-partner count)'],
+ ['market.html','Market activity','Client, guest, admin (scoped)','Daily volume as stacked bars (Deltablock + other participants = total market) with market price; share of volume (24 h, since contract start), Deltablock volume, trades vs market trades, buy/sell, spread vs contracted target'],
+ ['trades.html','Trade history','Client, guest, admin (scoped)','October totals above the filters, then the trade table'],
+ ['comparison.html','Peer comparison','Client, guest, admin (scoped)','Range chart per measure: lowest, median, highest peer and the company; periods 3 months, 6 months, 1 year'],
+ ['reports.html','Reports','Client, guest, admin (scoped)','Published PDFs'],
+ ['accounting.html','Statements','Client, admin (scoped)','Invoices and statements'],
+ ['subscription.html','Subscription','Client, admin (scoped)','Contracted services, contract targets, service term, start/end dates, renewal and status. The contract document is not shown. The plan never changes which pages are available'],
+ ['company.html','Company profile','Client, guest, admin (scoped)','Read-only profile for everyone; managers get Edit profile (opens an edit form) and changes go to review with a current-vs-proposed table'],
+ ['team.html','Team','Client, admin (scoped)','Team list first; managers use Invite someone (form opens on demand), edit access and remove'],
+ ['tickets.html','Support / Support tickets','Client, admin','Ticket list and new ticket; admin list has Status and Company filters. Statuses: Needs our reply, Waiting on client, Resolved'],
+ ['ticket.html','Ticket conversation','Client, admin','Messages on one ticket'],
+ ['companies.html','Companies','Multi-company client, admin','Directory, Open, Team; admin: Add company'],
+ ['admin.html','Admin overview','Admin','What needs attention'],
+ ['signup-links.html','Client sign-up links','Admin','Create company-based links'],
+ ['access-requests.html','Access requests','Admin','Approve or reject; create a link or add a missing company'],
+ ['profile-reviews.html','Profile reviews','Admin','Compare approved and proposed values; approve or reject'],
+ ['users.html','Users','Admin','Company tags, Edit access, manager rights, Add admin'],
+ ['admin-subscriptions.html','Subscriptions','Admin','Subscriptions table first; Edit opens a side panel for one company (plan, term, dates, renewal, services)'],
+ ['data-health.html','Data health','Admin','Feed freshness'],
+ ['access-log.html','Access log','Admin','Searchable sign-in log'],
+ ['wireframes.html','Screen map','Admin','This page'],
+ ['account.html','My account','Everyone signed in','Open from your name in the top bar: edit own name and email, change password. Role and company access cannot be changed here'],
+ ['login.html','Sign in / Request access','Everyone','Persona shortcuts or an account email'],
+ ['signup.html','Create account','Link or invitation holder','Registration from a sign-up link, Team invite or admin setup link'],
+ ['guest-invite.html','Accept guest invitation','Guest invitee','Read-only guest setup'],
+ ['password-reset.html','Password reset','Everyone','Prototype confirmation page']
+];
+var MATRIX=[
+ ['See company workspace pages','All companies','Assigned companies','Assigned companies','Invited companies, read-only: Overview, Market activity, Trade history, Peer comparison, Reports, Company profile'],
+ ['View the Team','Every company','Yes','Yes','No'],
+ ['Invite, edit access, cancel, remove','Every company','Only companies they manage','No','No'],
+ ['Submit company profile changes','No (reviews them)','Only companies they manage','No','No'],
+ ['Statements, Subscription and Support pages','Yes','Yes','Yes','No'],
+ ['Change own name, email and password (My account)','Yes','Yes','Yes','Yes'],
+ ['Admin pages and actions','Yes','No','No','No']
+];
+function flow(t,steps,links){return '<div class="rounded-md border p-4"><strong>'+t+'</strong><ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-mut">'+steps.map(function(s){return '<li>'+s+'</li>';}).join('')+'</ol><div class="mt-3 flex flex-wrap gap-2">'+links.map(function(l){return '<a class="btn btn-s" href="'+l[1]+'">'+l[0]+'</a>';}).join('')+'</div></div>';}
+App.mount({page:'wireframes',title:'Screen map',roles:['admin'],render:function(ctx){
+ var cards=ORDER.map(function(r){var R=App.ROLES[r];return '<section class="card p-5"><div class="mb-2 flex items-center justify-between gap-2"><h2 class="font-semibold">'+esc(R.label)+'</h2><span class="bd dr">Lands on '+esc(R.homeName)+'</span></div><p class="mb-3 text-sm text-mut">'+esc(NOTES[r])+'</p><ol class="mb-4 space-y-1 rounded-md bg-hov p-4 text-sm">'+App.NAV[r].map(function(n){return '<li><span class="mono text-xs text-cap">'+esc(n[0])+'</span> &nbsp;'+esc(n[1])+'</li>';}).join('')+'</ol><button class="btn btn-p" data-as="'+r+'">Open as '+esc(R.label.toLowerCase())+'</button></section>';}).join('');
+ var sample=App.links().filter(function(l){return App.linkState(l)==='unused';})[0],guest=App.people().filter(function(p){return p.type==='guest'&&p.status==='pending';})[0];
+ var matrix='<section class="card mt-5 overflow-x-auto p-5"><h2 class="font-semibold">Who can do what</h2><p class="mt-1 text-sm text-mut">One permission model, enforced in the menu, in direct URLs, in buttons and in the functions that change saved data. Company access and Team management are separate: access lets someone see a company, manager rights let them run its Team.</p><table class="tbl mt-3 min-w-[760px]"><tr><th>Capability</th><th>Admin</th><th>Company manager</th><th>Other client user</th><th>Guest</th></tr>'+MATRIX.map(function(r){return '<tr>'+r.map(function(c,i){return '<td'+(i?'':' class="font-medium"')+'>'+esc(c)+'</td>';}).join('')+'</tr>';}).join('')+'</table></section>';
+ var flows='<section class="card mt-5 p-5"><h2 class="font-semibold">Workflows</h2><div class="mt-3 grid gap-4 md:grid-cols-2">'+
+  flow('Add a company, then a sign-up link',['Admin opens Companies and chooses Add company','Fills identity fields; market data stays &ldquo;Not available&rdquo; if left blank','Duplicates are blocked; the company appears in Companies and the switcher','Admin creates a company-based sign-up link for it'],[['Companies','companies.html'],['Add company','companies.html?add=1']])+
+  flow('Client joins with a company link',['Admin selects one or more companies; no name or email is asked','Recipient opens the link and enters their own name, email and password','Existing emails are rejected (case-insensitive) with a pointer to Log in; the link is not used up','Success creates the account with the link&rsquo;s companies and marks the link used'],[['Admin: sign-up links','signup-links.html'],['Client view of a link',sample?'signup.html?t='+sample.token:'signup.html']])+
+  flow('Someone asks for access',['Visitor sends the Request access form on the login page','Admin approves or rejects in Access requests','Approved: Create sign-up link for the matching company, or Add company first when it is missing'],[['Login page form','login.html#request'],['Admin: access requests','access-requests.html']])+
+  flow('Team belongs to the company',['Everyone with access to a company sees the same Team for it','Managers invite colleagues or guests, edit access and remove people, for their companies only','Admins open any Team from Companies; Users &rarr; Edit access sets access and manager rights'],[['Companies','companies.html'],['Admin: all users','users.html'],['Guest invitation',guest?'guest-invite.html?t='+guest.token:'guest-invite.html']])+
+  flow('Company profile review',['Everyone with access sees the approved profile read-only; guests and non-managers have no edit button','A manager chooses Edit profile, changes fields in the edit form and submits; the approved profile stays live','The page shows Current vs proposed values while the request is pending (manager can withdraw)','Admin compares the values in Profile reviews; Approve applies them, Reject keeps the profile; both are recorded with date and reviewer'],[['Admin: profile reviews','profile-reviews.html'],['Company profile','company.html']])+
+  flow('Market activity and Peer comparison',['Market activity shows Deltablock and other participants stacked in each daily bar, with the market price line above','Six metrics sit below: share of volume, Deltablock volume, trades vs market trades, buy/sell, spread vs target','Peer comparison draws lowest, median, highest and the selected company on one range per measure; switch between 3 months, 6 months and 1 year'],[['Market activity','market.html'],['Peer comparison','comparison.html']])+
+  flow('Contract services and Admin Subscriptions',['Clients see contracted services, targets, term, dates and renewal on Subscription (no contract document)','Admin Subscriptions opens with the table; Edit opens a panel for the selected company','Saving updates the same stored subscription the client page reads; website pages are rejected as services'],[['Subscription','subscription.html'],['Admin: subscriptions','admin-subscriptions.html']])+
+  flow('Support ticket filters and statuses',['Admin Support tickets has Status and Company filters that work together','Statuses everywhere: Needs our reply, Waiting on client, Resolved','A client message sets Needs our reply; an admin reply sets Waiting on client'],[['Support tickets','tickets.html']])+
+  flow('My account',['Click your name in the top bar','Edit first name, last name and email; role and company access are not editable','Change password with current, new and confirm fields (validation and messages shown)'],[['My account','account.html']])+
+  flow('Add admin and search the log',['Admin opens Users and chooses Add admin (first name, last name, email)','The new admin finishes setup from a setup link and then sees the admin menu','Access log search filters name, email, company and date, with pagination on the results'],[['Users','users.html'],['Access log','access-log.html']])+
+  '</div></section>';
+ var pages='<section class="card mt-5 overflow-x-auto p-5"><h2 class="font-semibold">Pages</h2><p class="mt-1 text-sm text-mut">Every screen in the prototype shares one sidebar and one top bar (company switcher, theme toggle, sign out). Subscription plans do not hide or disable any client page.</p><table class="tbl mt-3 min-w-[760px]"><tr><th>Page</th><th>Route</th><th>Who</th><th>Purpose</th></tr>'+PAGES.map(function(p){return '<tr><td><a class="underline" href="'+p[0]+'">'+esc(p[1])+'</a></td><td class="mono text-xs text-cap">'+esc(p[0])+'</td><td>'+esc(p[2])+'</td><td class="text-mut">'+esc(p[3])+'</td></tr>';}).join('')+'</table></section>';
+ return '<div class="mb-8"><h1 class="page-title">Screen map</h1><p class="mt-2 text-sm text-mut">The reference for the implemented prototype: roles, menus, permissions, pages and workflows. Use the buttons to click through the portal as a role; sign out returns to the login page.</p></div><div class="grid gap-5 lg:grid-cols-2">'+cards+'</div>'+matrix+flows+pages;
+},after:function(ctx,main){
+ main.querySelectorAll('[data-as]').forEach(function(b){b.addEventListener('click',function(){location.href=App.login(b.dataset.as);});});
+}});
+})();
+</script></body></html>

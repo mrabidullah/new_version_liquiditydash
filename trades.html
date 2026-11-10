@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Trade history | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,f={from:'2026-10-01',to:'2026-10-23',side:'All trades',q:''};
+var VENUES={XETRA:['XETRA','Tradegate','XETRA'],Euronext:['Euronext Amsterdam','Cboe Europe','Euronext Amsterdam']};
+function trades(co){
+ var r=App.rng(App.seedOf(co.id)+99),out=[],day=23,min=14*60+22,no=88241;
+ for(var i=0;i<30;i++){
+  var side=r()<0.52?'Buy':'Sell',sh=Math.round((500+r()*r()*24000)/100)*100,pr=co.price*(0.985+r()*0.03),v=VENUES[co.exch];
+  out.push({iso:'2026-10-'+String(day).padStart(2,'0'),dt:day+' Oct 2026 · '+String(Math.floor(min/60)).padStart(2,'0')+':'+String(min%60).padStart(2,'0'),id:co.code+'-'+(no-=Math.round(8+r()*60)),side:side,sh:sh,pr:pr,val:sh*pr,venue:v[Math.floor(r()*v.length)]});
+  min-=Math.round(60+r()*240);if(min<9*60){min=17*60+Math.round(r()*25);day-=(day%7===6?3:1);if(day<1)day=1;}
+ }
+ return out;
+}
+App.mount({page:'trades',title:'Trade history',roles:['client','multi','guest','admin'],scoped:true,needsData:true,render:function(ctx){
+ var co=ctx.co,all=trades(co),rows=all.filter(function(t){return t.iso>=f.from&&t.iso<=f.to&&(f.side==='All trades'||t.side===f.side)&&(!f.q||(t.id+' '+t.venue).toLowerCase().indexOf(f.q.toLowerCase())>=0);});
+ ctx.rows=rows;
+ return '<div class="mb-8 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">Trade history</h1><p class="mt-2 text-sm text-mut">Executed trades &middot; '+esc(co.name)+' &middot; October 2026</p></div><button id="export" class="btn btn-p" type="button">Export CSV</button></div>'+
+ '<section class="card mb-2 grid gap-4 p-5 md:grid-cols-3" aria-label="October totals"><div><div class="text-xs text-cap">EXECUTED &middot; OCTOBER</div><div class="metric mt-2">'+esc(co.value30)+'</div><div class="text-xs text-cap">Trade value</div></div><div><div class="text-xs text-cap">MATCHED TRADES &middot; OCTOBER</div><div class="metric mt-2">'+App.num(co.trades30)+'</div><div class="text-xs text-cap">Executed orders</div></div><div><div class="text-xs text-cap">AVERAGE PRICE &middot; OCTOBER</div><div class="metric mt-2">&euro;'+co.price.toFixed(3)+'</div><div class="text-xs text-cap">Per share</div></div></section><p class="mb-6 text-xs text-cap">October totals for the whole month. They do not change with the filters below, which only narrow the trade list.</p>'+
+ '<section class="mb-6 grid gap-4 md:grid-cols-4"><label class="text-xs text-cap">From<input data-f="from" type="date" class="inp mt-1" value="'+f.from+'"></label><label class="text-xs text-cap">To<input data-f="to" type="date" class="inp mt-1" value="'+f.to+'"></label><label class="text-xs text-cap">Side<select data-f="side" class="inp mt-1">'+['All trades','Buy','Sell'].map(function(s){return '<option'+(s===f.side?' selected':'')+'>'+s+'</option>';}).join('')+'</select></label><label class="text-xs text-cap">Search<input data-f="q" class="inp mt-1" placeholder="Trade ID or venue" value="'+esc(f.q)+'"></label></section>'+
+ '<section class="card overflow-x-auto"><table class="tbl min-w-[720px]"><tr><th>Date &amp; time</th><th>Trade ID</th><th>Side</th><th>Shares</th><th>Price</th><th>Value</th><th>Venue</th></tr>'+rows.map(function(t){return '<tr><td>'+t.dt+'</td><td class="mono">'+t.id+'</td><td>'+t.side+'</td><td class="mono">'+App.num(t.sh)+'</td><td class="mono">&euro;'+t.pr.toFixed(3)+'</td><td class="mono">&euro;'+App.num(Math.round(t.val))+'</td><td>'+esc(t.venue)+'</td></tr>';}).join('')+'</table>'+(rows.length?'':'<p class="p-5 text-sm text-cap">No trades match these filters.</p>')+'</section><p class="mt-3 text-xs text-cap">Sample view: the latest '+all.length+' of '+App.num(co.trades30)+' trades. The export contains the rows currently shown.</p>';
+},after:function(ctx,main){
+ main.querySelectorAll('[data-f]').forEach(function(el){el.addEventListener('input',function(){f[el.dataset.f]=el.value;var pos=el.selectionStart,key=el.dataset.f;ctx.refresh();if(key==='q'){var n=document.querySelector('[data-f=q]');n.focus();try{n.setSelectionRange(pos,pos);}catch(e){}}});});
+ main.querySelector('#export').addEventListener('click',function(){
+  var head=['Date & time','Trade ID','Side','Shares','Price','Value','Venue'],body=ctx.rows.map(function(t){return [t.dt,t.id,t.side,t.sh,t.pr.toFixed(3),Math.round(t.val),t.venue];});
+  var csv=[head].concat(body).map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));a.download='trade-history-'+ctx.co.code.toLowerCase()+'-oct-2026.csv';a.hidden=true;document.body.appendChild(a);a.click();a.remove();});
+}});
+})();
+</script></body></html>

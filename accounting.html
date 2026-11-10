@@ -1,0 +1,15 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Statements | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,BASE={c1:9,c2:19,elite:29};
+function eur(n){return '€'+n.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});}
+App.mount({page:'accounting',title:'Statements',roles:['client','multi','admin'],scoped:true,render:function(ctx){
+ var co=ctx.co,b=BASE[co.id],f=co.fee;
+ if(f==null||b==null)return '<div class="mb-8"><h1 class="page-title">Statements</h1><p class="mt-2 text-sm text-mut">Invoices and billing statements for '+esc(co.name)+'.</p></div><section class="card p-8 text-center"><span class="bd dr">None yet</span><p class="mt-3 text-sm text-mut">No invoices or statements have been issued for '+esc(co.name)+' yet.</p></section>';
+ var docs=[['Invoice DB-2026-'+String(b).padStart(3,'0'),'September 2026','01 Oct 2026',f,'ok','Paid'],['Invoice DB-2026-'+String(b-1).padStart(3,'0'),'August 2026','01 Sep 2026',f,'ok','Paid'],['Statement 2026-Q2','Apr–Jun 2026','05 Jul 2026',f*3,'ok','Paid']];
+ if(co.id==='c2')docs.unshift(['Invoice DB-2026-020','October 2026','01 Oct 2026',f,'warn','Due 15 Nov 2026']);
+ return '<div class="mb-8"><h1 class="page-title">Statements</h1><p class="mt-2 text-sm text-mut">Invoices and billing statements for '+esc(co.name)+'.</p></div><section class="card overflow-x-auto"><table class="tbl min-w-[640px]"><tr><th>Document</th><th>Period</th><th>Issued</th><th>Amount</th><th>Status</th><th></th></tr>'+docs.map(function(d){return '<tr><td>'+esc(d[0])+'</td><td>'+esc(d[1])+'</td><td>'+esc(d[2])+'</td><td class="mono">'+eur(d[3])+'</td><td>'+App.badge(d[4],d[5])+'</td><td class="text-right"><a href="#" class="btn btn-s" data-pdf>PDF</a></td></tr>';}).join('')+'</table></section>';
+},after:function(ctx,main){main.querySelectorAll('[data-pdf]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();App.toast('Sample document: no PDF file in this prototype');});});}});
+})();
+</script></body></html>

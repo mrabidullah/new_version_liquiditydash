@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Company profile | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,draft=null,errs={},reopen=false;
+var STATUS={approved:['ok','Approved'],rejected:['bad','Rejected']};
+function lastDecision(id){return App.profileReviews().filter(function(r){return r.company===id&&(r.status==='approved'||r.status==='rejected');})[0];}
+function dash(v){return v===''||v==null?'<span class="text-cap">Not provided</span>':esc(v);}
+function numOf(v){var n=parseFloat(String(v==null?'':v).replace(/,/g,'').replace(/%/g,''));return isFinite(n)?n:null;}
+function ini(n){return String(n).split(/\s+/).map(function(x){return x[0];}).slice(0,2).join('').toUpperCase();}
+function field(label,value,mono){return '<div class="min-w-0"><dt class="text-xs font-medium text-cap">'+esc(label)+'</dt><dd class="mt-1 break-words text-sm font-medium text-ink'+(mono?' mono':'')+'">'+value+'</dd></div>';}
+function stat(label,value,sub){return '<div class="rounded-lg border bg-hov p-4"><div class="metric-label">'+esc(label)+'</div><div class="metric mt-2 !text-xl">'+value+'</div>'+(sub?'<div class="mt-1 text-xs text-cap">'+sub+'</div>':'')+'</div>';}
+function bar(label,v){var n=numOf(v);if(n==null)return '<div><div class="flex justify-between text-sm"><span>'+esc(label)+'</span><span class="text-cap">Not provided</span></div></div>';var w=Math.max(0,Math.min(100,n));return '<div><div class="flex justify-between text-sm"><span>'+esc(label)+'</span><b class="mono">'+esc(String(v).replace(/%?$/,'%'))+'</b></div><div class="mt-1.5 h-2 overflow-hidden rounded-full bg-hov" role="img" aria-label="'+esc(label)+' '+w+' percent"><div class="h-full rounded-full" style="width:'+w+'%;background:#F2B705"></div></div></div>';}
+function inp(f,val,span){var k=f[0];return '<div'+(span?' class="md:col-span-2"':'')+'><label class="lbl" for="f-'+k+'">'+f[1]+'</label><input id="f-'+k+'" name="'+k+'" type="'+f[2]+'" class="inp" value="'+esc(val)+'" autocomplete="off"'+(errs[k]?' aria-invalid="true"':'')+' aria-describedby="e-'+k+'"><p class="field-err" id="e-'+k+'" role="alert"'+(errs[k]?'':' hidden')+'>'+esc(errs[k]||'')+'</p></div>';}
+App.mount({page:'company',title:'Company profile',roles:['client','multi','guest','admin'],scoped:true,render:function(ctx){
+ var co=ctx.co,guest=ctx.role==='guest',pend=guest?null:App.pendingReview(co.id),edit=App.can.editProfile(co.id),F=App.PROFILE_FIELDS;
+ var sh=numOf(co.shares),fl=numOf(co.float),flPct=(sh&&fl!=null)?(fl/sh*100).toFixed(1)+'% of shares':'';
+ var ld=(!pend&&!guest)?lastDecision(co.id):null;
+ var statusBadge=guest?App.badge('dr','Read-only'):pend?App.badge('warn','Change pending review'):App.badge('ok','Approved profile');
+ var note;
+ if(guest)note='You have read-only access to this profile.';
+ else if(ctx.admin)note='You are viewing the approved profile. Change requests arrive in <a class="underline" href="profile-reviews.html">Profile reviews</a>'+(pend?' &mdash; one is waiting for this company.':'.');
+ else if(pend)note='A change was sent for review on '+esc(pend.submittedLabel)+' by '+esc(pend.by.name||'a colleague')+'. The approved profile below stays unchanged until an administrator approves it.';
+ else if(!edit)note='You can view this profile. Only a manager of '+esc(co.name)+' can submit changes.';
+ else note='Changes are not applied instantly. An administrator reviews them first, and the approved profile below stays live meanwhile.';
+ var outcome=ld?'<div class="card mb-6 flex flex-wrap items-center gap-3 p-4 text-sm">'+App.badge(STATUS[ld.status][0],'Last request '+STATUS[ld.status][1].toLowerCase())+'<span class="text-mut">Reviewed '+esc(ld.reviewedLabel||'')+(ld.reviewedBy?' by '+esc(ld.reviewedBy.name):'')+(ld.note?' &middot; '+esc(ld.note):'')+(ld.status==='rejected'?' &middot; The approved profile was not changed.':'')+'</span></div>':'';
+ var pendBox='';
+ if(pend){pendBox='<section class="card mb-6 overflow-x-auto" id="pending-box"><div class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4"><div><h2 class="font-semibold">Current vs proposed values</h2><p class="text-sm text-cap">Submitted '+esc(pend.submittedLabel)+' &middot; waiting for administrator approval</p></div>'+(edit?'<button type="button" class="btn btn-s" id="withdraw">Withdraw request</button>':'')+'</div><table class="tbl min-w-[560px]"><tr><th>Field</th><th>Current (approved, live)</th><th>Proposed</th></tr>'+Object.keys(pend.changes).map(function(k){var f=F.filter(function(x){return x[0]===k;})[0];return '<tr><td>'+esc(f?f[1]:k)+'</td><td class="text-mut">'+esc(co[k]==null||co[k]===''?'—':co[k])+'</td><td class="font-medium">'+esc(pend.changes[k].to===''?'—':pend.changes[k].to)+'</td></tr>';}).join('')+'</table></section>';}
+ var hero='<section class="card mb-6 p-6"><div class="flex flex-wrap items-center gap-5"><div class="grid h-16 w-16 shrink-0 place-items-center rounded-xl text-xl font-semibold" style="background:#0A1220;color:#F2B705" aria-hidden="true">'+esc(ini(co.name))+'</div><div class="min-w-0 flex-1"><h2 class="text-2xl font-semibold tracking-tight">'+esc(co.name)+'</h2><p class="mt-1 text-sm text-mut">'+(co.legal?esc(co.legal)+' &middot; ':'')+esc(co.exch)+' &middot; <span class="mono">'+esc(co.code)+'</span></p></div><div class="flex flex-wrap gap-2">'+(co.feed?App.badge(co.feed[0],'Data: '+co.feed[1]):'')+'</div></div></section>';
+ var overview='<section class="card p-6"><h2 class="font-semibold">Company details</h2><p class="mb-4 text-sm text-cap">Legal identity and listing.</p><dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2">'+field('Legal name',dash(co.legal))+field('Listed exchange',dash(co.exch))+field('Ticker code',dash(co.code),true)+field('Display name',dash(co.name))+'</dl></section>';
+ var shares='<section class="card p-6"><h2 class="font-semibold">Share structure</h2><p class="mb-4 text-sm text-cap">Shares in issue and who holds them.</p><div class="grid gap-3 sm:grid-cols-2">'+stat('Shares outstanding',dash(co.shares))+stat('Free float',dash(co.float),flPct)+'</div><div class="mt-5 space-y-4">'+bar('Held by insiders',co.insiders)+bar('Held by institutions',co.institutions)+'</div></section>';
+ var contact='<section class="card p-6 lg:col-span-2"><h2 class="font-semibold">Contact</h2><p class="mb-4 text-sm text-cap">How Deltablock and your team can reach the company.</p><dl class="grid gap-x-6 gap-y-5 sm:grid-cols-3">'+field('Email',co.email?'<a class="underline" href="mailto:'+esc(co.email)+'">'+esc(co.email)+'</a>':dash(''))+field('Phone',dash(co.phone))+field('Address',dash(co.address))+'</dl></section>';
+ return '<div class="mb-6 flex flex-wrap items-end justify-between gap-3"><div><h1 class="page-title">Company profile</h1><p class="mt-2 text-sm text-mut">Approved company information for '+esc(co.name)+'.</p></div><div class="flex flex-wrap items-center gap-3">'+statusBadge+(edit?'<button type="button" class="btn btn-p" id="edit-profile" data-open="edit-modal">Edit profile</button>':'')+'</div></div><div class="card mb-6 flex gap-3 bg-[var(--infb)] p-4 text-sm"><p class="text-mut">'+note+'</p></div>'+outcome+pendBox+hero+'<div class="grid gap-5 lg:grid-cols-2">'+overview+shares+contact+'</div>';
+},extra:function(ctx){
+ var co=ctx.co;if(!App.can.editProfile(co.id))return '';
+ var pend=App.pendingReview(co.id),F=App.PROFILE_FIELDS;
+ function val(k){if(draft&&draft.co===co.id&&draft.vals[k]!==undefined)return draft.vals[k];if(pend&&pend.changes[k])return pend.changes[k].to;return co[k]==null?'':co[k];}
+ var about=F.slice(0,6).map(function(f){return inp(f,val(f[0]));}).join(''),contact=F.slice(6,8).map(function(f){return inp(f,val(f[0]));}).join('')+inp(F[8],val('address'),true);
+ return '<div id="edit-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="em-t"><form id="pf" class="card modal-scroll w-full max-w-2xl" novalidate><div class="border-b px-6 py-4"><h2 id="em-t" class="font-semibold">Edit profile</h2><p class="text-sm text-cap">'+(pend?'You already have a request waiting. Submitting again replaces it.':'Your changes are sent to Deltablock for review. The approved profile stays live until then.')+'</p></div><div class="space-y-6 p-6"><p class="field-err" id="pf-err" role="alert" hidden></p><div><h3 class="mb-3 text-sm font-semibold">Company details and share structure</h3><div class="grid gap-x-5 gap-y-4 md:grid-cols-2">'+about+'</div></div><div><h3 class="mb-3 text-sm font-semibold">Contact</h3><div class="grid gap-x-5 gap-y-4 md:grid-cols-2">'+contact+'</div></div></div><div class="flex flex-wrap justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" id="discard">Reset</button><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-p">Submit for review</button></div></form></div>';
+},after:function(ctx,main,ov){
+ var co=ctx.co,form=ov.querySelector('#pf');
+ if(!App.can.editProfile(co.id))return;
+ form.addEventListener('submit',function(e){e.preventDefault();
+  var vals={};App.PROFILE_FIELDS.forEach(function(f){vals[f[0]]=form.querySelector('#f-'+f[0]).value;});
+  var res=App.submitProfile(co.id,vals);
+  if(!res.ok){errs=res.errors||{};draft={co:co.id,vals:vals};reopen=true;ctx.refresh();App.toast(res.error,'err');return;}
+  errs={};draft=null;App.closeModals();ctx.refresh();App.toast('Changes sent for review');window.scrollTo(0,0);});
+ ov.querySelector('#discard').addEventListener('click',function(){errs={};draft=null;reopen=true;ctx.refresh();App.toast('Form reset');});
+ var w=main.querySelector('#withdraw');if(w)w.addEventListener('click',function(){var res=App.withdrawProfile(co.id);if(!res.ok){App.toast(res.error,'err');return;}draft=null;errs={};ctx.refresh();App.toast('Request withdrawn');});
+ if(reopen){reopen=false;App.openModal('edit-modal');var fe=form.querySelector('[aria-invalid]');if(fe)fe.focus();}
+}});
+})();
+</script></body></html>
