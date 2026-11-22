@@ -1,319 +1,377 @@
 # DeltaBlock LiquidityDash
 
-**A clickable HTML prototype of the DeltaBlock client portal.**
+DeltaBlock LiquidityDash is a static, clickable prototype of a client portal for listed companies. It demonstrates the project structure, role-based navigation, company-level access, liquidity reporting, team management, subscriptions, support, and administrative workflows.
 
-DeltaBlock LiquidityDash is a static frontend prototype designed to demonstrate the client portal experience for listed companies. It includes role-based navigation, company management, market activity, trade history, peer comparisons, reports, subscriptions, team management, support tickets, and administrative workflows.
+> **Prototype only:** The project contains sample data and simulates authentication, authorization, invitations, email, payments, and document storage in the browser. It has no backend, real security boundary, broker connection, external API, or email delivery. Do not enter or display real client information.
 
-> **Prototype Notice:** This is a demonstration project using sample data. It does not include production authentication, backend APIs, server-side permissions, a database, live broker connections, or real email delivery. All interactive changes are stored locally in the browser.
+## Contents
 
----
+- [Features](#features)
+- [Roles and permissions](#roles-and-permissions)
+- [Quick start](#quick-start)
+- [Prototype sign-in](#prototype-sign-in)
+- [Page guide](#page-guide)
+- [How interactions work](#how-interactions-work)
+- [Project structure](#project-structure)
+- [Data model](#data-model)
+- [Page states and preview controls](#page-states-and-preview-controls)
+- [Building Tailwind CSS](#building-tailwind-css)
+- [Resetting the prototype](#resetting-the-prototype)
+- [Customization](#customization)
+- [Known limitations](#known-limitations)
 
-## 1. Project Overview
+## Features
 
-The prototype is built with:
+### Client workspace
 
-- HTML5
-- CSS3
-- Tailwind CSS 3.4.17
-- Vanilla JavaScript
-- Browser LocalStorage
+- Company overview with liquidity KPIs and period controls
+- Market activity and Deltablock volume versus total market volume
+- Filterable trade history with totals and CSV export
+- Peer and sector comparison charts
+- Monthly reports and statements
+- Subscription plan, contracted services, dates, targets, and renewal status
+- Company profile management with an approval workflow
+- Company team management
+- Support tickets and message threads
+- Personal account settings
 
-The shared application logic is managed through `js/app.js`, while sample project data is maintained in `js/data.js`.
+### Administration
 
-Every page uses a consistent navigation sidebar and top bar. Available pages and menus depend on the selected demonstration role.
+- Organization-wide admin overview
+- Company creation and company details
+- PDF report and statement publishing
+- Company-based sign-up links
+- Access request review
+- Profile change review
+- User and pending-admin management
+- Subscription administration
+- Data-feed health
+- Access log
+- Support ticket assignment and status management
+- Visual screen map
 
-## 2. Getting Started
+### User experience
 
-### Requirements
+- Light and dark themes
+- Responsive desktop and mobile layouts
+- Loading, error, and empty-state previews
+- Currency and time-zone-aware company data
+- Delayed-feed warnings
+- Target status for time-in-market and spread
+- Browser-based toast notifications and dialogs
 
-- Node.js and npm (required for rebuilding CSS)
-- Python 3 (for running the local development server)
-- A modern web browser
+## Roles and permissions
 
-### Run Locally
+Roles are simulated in `js/app.js`. Company access and Team-management rights are stored separately.
 
-Open a terminal in the project directory and run:
+| Role | Access | Main landing page |
+|---|---|---|
+| Client | One or more assigned companies, depending on the account | Overview or Companies |
+| Multi-company client | Multiple companies | Companies |
+| Guest | Read-only access to approved company information | Overview |
+| Admin | Organization-wide administration | Admin overview |
 
-```powershell
-py -m http.server 8000
-```
+Role behavior includes:
 
-Then open:
+- **Client / colleague:** Reads company data and can use permitted team and profile actions.
+- **Company manager:** May edit the company profile and manage the Team for a company they manage.
+- **Guest:** Can view Overview, Market activity, Trade history, Peer comparison, Reports, and Company profile. Guests cannot use Statements, Team, Subscription, or Support.
+- **Admin:** Can manage companies, users, subscriptions, access requests, profile reviews, documents, feeds, and support.
 
-http://localhost:8000/login.html
+The menu, direct page URLs, action buttons, and mutation functions use the shared permission helpers in `js/app.js`. These are prototype checks only and must not be reused as a production authorization system.
 
-If the `py` command is unavailable, use:
+## Quick start
+
+### Option 1: Open a local web server
+
+The portal uses relative URLs and browser JavaScript, so it should be served over HTTP rather than opened with `file://`.
+
+Using Python:
 
 ```powershell
 python -m http.server 8000
 ```
 
-The project can also be hosted on any static web server.
+Then open:
 
-### Rebuild CSS
+```text
+http://localhost:8000/login.html
+```
 
-Install dependencies:
+Using Node.js, if a server package is installed globally:
+
+```powershell
+npx serve .
+```
+
+### Option 2: Build CSS and run
+
+Requires Node.js and npm.
 
 ```powershell
 npm install
+npm run build
+python -m http.server 8000
 ```
 
-Build the stylesheet:
+Open `http://localhost:8000/login.html`.
+
+## Prototype sign-in
+
+Open [login.html](login.html) and choose a persona in **Prototype: sign in as**.
+
+| Persona | Simulated identity | Intended purpose |
+|---|---|---|
+| Client | Aisha Khan | One-company client and company manager |
+| Multi-company client | Diego Alvarez | Multi-company navigation and company switching |
+| Guest | Jordan Lee | Read-only company access |
+| Admin | Khan Abid | Administrative workflows |
+
+The password is intentionally not checked. Selecting a persona replaces the email and session persona. Other users created through sign-up links or invitations can sign in by entering their saved email address.
+
+The login page also supports:
+
+- Access requests
+- Password-reset simulation
+- Sign-up link registration
+- Guest and colleague invitations
+- Pending-admin setup links
+
+## Page guide
+
+### Authentication and account
+
+| Page | Purpose |
+|---|---|
+| [login.html](login.html) | Persona selection and prototype sign-in |
+| [signup.html](signup.html) | Create an account using a valid sign-up link |
+| [password-reset.html](password-reset.html) | Simulated password reset |
+| [account.html](account.html) | Update the signed-in user's name and email |
+| [guest-invite.html](guest-invite.html) | Accept a guest or colleague invitation |
+
+### Client pages
+
+| Page | Purpose |
+|---|---|
+| [dashboard.html](dashboard.html) | Overview, KPIs, target status, peer summary, and latest items |
+| [market.html](market.html) | Market volume, Deltablock share, price, and trading activity |
+| [trades.html](trades.html) | Paginated trade history, filters, totals, and CSV export |
+| [comparison.html](comparison.html) | Peer ranges and 3-month, 6-month, and 1-year comparisons |
+| [reports.html](reports.html) | Published reports and PDFs |
+| [accounting.html](accounting.html) | Statements and accounting documents |
+| [subscription.html](subscription.html) | Contracted services, targets, term, and renewal |
+| [company.html](company.html) | Company profile and manager edit workflow |
+| [team.html](team.html) | Company team list and member invitations |
+| [tickets.html](tickets.html) | Client support ticket list |
+| [ticket.html](ticket.html) | Individual support conversation |
+
+### Admin pages
+
+| Page | Purpose |
+|---|---|
+| [admin.html](admin.html) | Organization-wide metrics and target status |
+| [companies.html](companies.html) | Company list and company creation |
+| [publish.html](publish.html) | Publish reports or statements to companies |
+| [signup-links.html](signup-links.html) | Create and manage company-based sign-up links |
+| [access-requests.html](access-requests.html) | Approve or reject access requests |
+| [profile-reviews.html](profile-reviews.html) | Approve or reject proposed company profile changes |
+| [users.html](users.html) | Users, colleagues, guests, and pending administrators |
+| [admin-subscriptions.html](admin-subscriptions.html) | Review and edit company subscriptions |
+| [data-health.html](data-health.html) | Data-feed status and freshness |
+| [access-log.html](access-log.html) | Sample sign-in activity and search |
+| [tickets.html](tickets.html) | Admin support-ticket queue |
+| [wireframes.html](wireframes.html) | Map of prototype screens |
+
+## How interactions work
+
+### Company switching
+
+Multi-company clients can open **Companies** and select a company. The active company is stored in `localStorage` under `dbt-company`. Data pages read that selection and use the appropriate currency, target, feed, and sample figures.
+
+### Team management
+
+Team membership is company-based:
+
+- Everyone with access to a company can see the company Team.
+- Company managers can invite colleagues or guests and change permitted management rights.
+- Admins can manage users across the workspace.
+- An invite is a browser-simulated action; no email is sent.
+
+### Sign-up links
+
+Admin-created sign-up links are assigned to one or more companies. A link does not reserve a name or email address. The recipient supplies both when registering.
+
+The registration flow rejects duplicate email addresses, ignoring letter case. A used link records the resulting account after submission.
+
+### Profile changes
+
+Company managers can propose profile edits. Proposed changes are saved as review records under `dbt-profile-reviews`.
+
+Admins approve or reject each review in [profile-reviews.html](profile-reviews.html). Approved fields are stored in `dbt-profile-approved` and applied on top of the sample company data.
+
+### Published documents
+
+Admins can publish a PDF to a company. Browser storage is used, with a 1 MB file-size limit. This is only a prototype document store and should not be used for confidential or real documents.
+
+### Support tickets
+
+Ticket status wording is role-aware:
+
+- **With Deltablock** or **Waiting for your reply** for clients
+- **Needs our reply**, **Waiting on client**, or **Resolved** in admin workflows
+
+Older status values are migrated when the prototype loads.
+
+### Data and persistence
+
+Interactive changes are stored in browser `localStorage`:
+
+- Session and selected company
+- People and team membership
+- Invitations and sign-up links
+- Access requests
+- Profile edits and approvals
+- Support tickets
+- Subscription updates
+- Published document metadata and file content
+- Theme preference
+
+Only keys prefixed with `dbt-` belong to the prototype. Browser storage is specific to the browser and origin. Clearing site data or using another browser starts from a separate or empty prototype state.
+
+## Project structure
+
+```text
+deltablock-static/
+├── *.html                  # Individual portal pages
+├── css/
+│   └── style.css           # Compiled Tailwind and custom styles
+├── js/
+│   ├── app.js              # Shared shell, permissions, storage, workflows
+│   ├── data.js             # Sample companies, users, KPIs, reports, tickets
+│   └── theme.js            # Light/dark theme initialization
+├── src/
+│   └── input.css           # Tailwind input and custom source styles
+├── reports/
+│   └── *.pdf               # Sample PDF documents
+├── package.json
+├── tailwind.config.js
+└── README.md
+```
+
+The HTML pages load `js/data.js` and `js/app.js`, then call `App.mount(...)` for the shared sidebar, top bar, role guard, company selection, page states, and content renderer.
+
+## Data model
+
+Sample data is centralized in [js/data.js](js/data.js).
+
+Key collections include:
+
+- `COMPANIES`: Company profile, exchange, share price, currency, time zone, feed state, and targets
+- `ORDER`: Company display order
+- `KPI`: Time-in-market, volume, spread, turnover, and Deltablock share by period
+- `PEER_GROUPS`: Anonymized peer ranges
+- `SUB`: Subscription plans and contracted services
+- `REPORTS`: Report and statement metadata
+- `LINKS`: Sign-up links
+- `REQUESTS`: Access requests
+- `PEOPLE`: Administrators, clients, colleagues, and guests
+- `TICKETS`: Support tickets and conversation threads
+- `ACCESS_LOG`: Sample sign-in records
+- `FEEDS`: Feed freshness and status
+- `MARKET`: Market trades and buy-side activity
+
+Several values are deterministic: company series are generated from the company ID and a fixed seed, so Overview, Market activity, Trade history, and Peer comparison remain visually consistent for a session.
+
+Sample companies include:
+
+- Company 1: XETRA, EUR
+- Company 2: Euronext, EUR
+- Company 3: SGX Catalist, SGD
+
+The sample data date is 23 October 2026.
+
+## Page states and preview controls
+
+Selected data pages support Normal, Loading, Error, and Empty previews:
+
+- Overview
+- Market activity
+- Trade history
+- Peer comparison
+- Reports
+- Statements
+
+Use the **Prototype: preview this page as** control at the bottom of a supported page, or append a URL parameter:
+
+```text
+dashboard.html?state=loading
+dashboard.html?state=error
+dashboard.html?state=empty
+```
+
+Loading and error states demonstrate page behavior only. They do not represent real network failures or API responses.
+
+## Building Tailwind CSS
+
+Tailwind is configured in [tailwind.config.js](tailwind.config.js). Its content paths scan HTML pages and JavaScript files.
 
 ```powershell
 npm run build
 ```
 
-To automatically rebuild CSS while editing:
+Build output:
+
+```text
+css/style.css
+```
+
+For development with automatic rebuild:
 
 ```powershell
 npm run watch
 ```
 
-The generated stylesheet is located at `css/style.css`, and its source is `src/input.css`.
+Run `npm run build` after adding or changing Tailwind utility classes. Custom shared styles are maintained in [src/input.css](src/input.css).
 
-## 3. Demo Roles and Navigation
+## Resetting the prototype
 
-Start at `login.html` and select a role using **Prototype: sign in as**.
+To remove prototype state while preserving the theme:
 
-| Role | Landing Page | Main Features |
-|---|---|---|
-| Client | `dashboard.html` | Overview, market activity, trades, peer comparison, reports, statements, subscriptions, company profile, team and support |
-| Multi-company Client | `companies.html` | Assigned companies, company switching and client workspace |
-| Guest | `dashboard.html` | Read-only company information, market activity, trade history, reports and peer comparison |
-| Admin | `admin.html` | Admin dashboard, companies, users, access requests, subscriptions, data health, access logs and support |
+```javascript
+Object.keys(localStorage)
+  .filter((key) => key.startsWith("dbt-") && key !== "dbt-theme-v2")
+  .forEach((key) => localStorage.removeItem(key));
 
-The login form uses demonstration personas and does not authenticate real users or verify real passwords.
-
-## 4. Main Application Features
-
-### Client Workspace
-
-- **Overview (`dashboard.html`):** Company KPIs, reporting periods, data status, peer summary and recent activity.
-- **Market Activity (`market.html`):** Daily market volume, price activity and market performance metrics.
-- **Trade History (`trades.html`):** Trade records, date and side filters, totals and CSV export.
-- **Peer Comparison (`comparison.html`):** Anonymous peer comparisons with selectable reporting periods.
-- **Reports (`reports.html`):** Published sample reports and documents.
-- **Statements (`accounting.html`):** Sample accounting and statement information.
-- **Subscription (`subscription.html`):** Contracted services, targets, subscription status, term and renewal.
-- **Company Profile (`company.html`):** Company information and profile change workflows.
-- **Team (`team.html`):** Company-based team members, invitations and access management.
-- **Support (`tickets.html`, `ticket.html`):** Support ticket management and conversation views.
-- **My Account (`account.html`):** Personal account details and simulated password management.
-
-### Registration and Access Management
-
-- **Login (`login.html`):** Demonstration login and access request form.
-- **Sign-up Links (`signup-links.html`):** Company-based client registration links.
-- **Sign-up (`signup.html`):** Client account setup through a registration link.
-- **Guest Invitation (`guest-invite.html`):** Guest invitation acceptance workflow.
-- **Password Reset (`password-reset.html`):** Demonstration password reset request.
-- **Access Requests (`access-requests.html`):** Admin review and approval of access requests.
-
-### Administration
-
-- **Admin Dashboard (`admin.html`):** Administrative overview and attention items.
-- **Companies (`companies.html`):** Company listing, company selection and management.
-- **Users (`users.html`):** User management, company assignments and pending admin setup.
-- **Admin Subscriptions (`admin-subscriptions.html`):** Subscription management and editing.
-- **Data Health (`data-health.html`):** Sample feed status and freshness information.
-- **Access Log (`access-log.html`):** Demonstration administrative access history.
-- **Profile Reviews (`profile-reviews.html`):** Admin review and approval of proposed profile changes.
-- **Publish Documents (`publish.html`):** Publishing sample PDF reports and statements to companies.
-- **Wireframes (`wireframes.html`):** Clickable screen map of the application.
-
----
-
-## 5. Permissions and Company Management
-
-The prototype demonstrates company-based access and role-specific permissions.
-
-Permission logic is maintained in `js/app.js` through:
-
-- `App.can`
-- `App.resolve`
-
-Company access (`people[].companies`) and team-management permissions (`people[].manages`) are handled separately.
-
-The prototype applies permission checks to navigation menus, direct page access, buttons and relevant mutation functions.
-
-### Team Management
-
-- Team membership belongs to a company.
-- Users with access to the same company see its team.
-- Company managers and administrators can manage team members.
-
-### Company Management
-
-- Administrators can add and manage companies.
-- Companies without available feeds display a Not Available state rather than fabricated figures.
-- Administrators can correct company details through the company profile workflow.
-
-### Registration and Profile Reviews
-
-- Registration links are associated with companies.
-- Existing email addresses are checked case-insensitively in the demonstration.
-- Profile changes are saved as review records.
-- Administrators can approve or reject proposed profile changes.
-- New administrator accounts use a simulated setup-link workflow.
-
-**Important:** These permission checks run entirely in browser JavaScript. They demonstrate application behavior but do not provide real security.
-
----
-
-## 6. Client Feedback Updates
-
-### Feedback Round 4
-
-- Company profiles are read-only by default, with editing available to authorized company managers.
-- Market activity includes daily market volume and price information.
-- Peer comparison supports 3-month, 6-month and 1-year views.
-- Subscription pages display contracted services, targets, terms and renewals.
-- Team and administration tables have been reorganized.
-- Support tickets use Needs Our Reply, Waiting on Client and Resolved statuses.
-- Guest accounts have read-only access to permitted pages.
-- Personal account management is available through the top navigation.
-
-### Feedback Round 7
-
-- Data dates, reporting periods, time zones and delayed-feed warnings appear on relevant pages.
-- Preview states support Normal, Loading, Error and Empty modes.
-- Company-specific administration pages are available to administrators.
-- Company target status appears on Companies and Admin Overview.
-- Subscription panels display service-level contract information and status.
-- Administrators can publish sample PDF reports and statements.
-- Trade history supports filtered totals, pagination and CSV export.
-- Application terminology has been standardized across relevant pages.
-
-### Additional Improvements
-
-- Company-based team management and permission handling.
-- Improved administrator workflows and subscription management.
-- Company-specific sign-up links.
-- Profile review and approval workflows.
-- Improved market activity and peer comparison displays.
-- Consistent page layouts and role-based navigation.
-
----
-
-## 7. Sample Data and Browser Storage
-
-Sample data is maintained in:
-
-`js/data.js`
-
-The prototype uses browser `localStorage` to save demonstration changes, including:
-
-- Demo sessions and selected companies.
-- Team invitations.
-- Registration links.
-- Access requests.
-- Subscription changes.
-- Profile change requests.
-- Support ticket updates.
-
-Stored data is specific to the browser and device. It is not shared with other users.
-
-### Reset Demonstration Data
-
-To restore the original sample state, clear the site's LocalStorage through the browser's developer tools.
-
-The application includes a migration mechanism (`migrate()` in `js/app.js`) to preserve compatible data from earlier prototype versions.
-
----
-
-## 8. Project Structure
-
-```text
-.
-├── README.md
-├── login.html
-├── dashboard.html
-├── market.html
-├── trades.html
-├── comparison.html
-├── reports.html
-├── accounting.html
-├── subscription.html
-├── company.html
-├── team.html
-├── account.html
-├── admin.html
-├── companies.html
-├── users.html
-├── admin-subscriptions.html
-├── signup.html
-├── signup-links.html
-├── guest-invite.html
-├── password-reset.html
-├── access-requests.html
-├── access-log.html
-├── data-health.html
-├── profile-reviews.html
-├── publish.html
-├── tickets.html
-├── ticket.html
-├── wireframes.html
-├── js/
-│   ├── app.js
-│   ├── data.js
-│   └── theme.js
-├── css/
-│   └── style.css
-├── src/
-│   └── input.css
-├── reports/
-│   ├── annual-market-review.pdf
-│   ├── monthly-liquidity-review.pdf
-│   └── trading-activity-summary.pdf
-├── package.json
-├── package-lock.json
-└── tailwind.config.js
+location.reload();
 ```
 
----
+Run this in the browser developer console while on the prototype origin.
 
-## 9. Technical Limitations
+The application can also migrate saved schemas from earlier prototype versions in place. It does not reset existing browser data automatically.
 
-This project is a static frontend prototype, not a production application.
+## Customization
 
-The following capabilities are simulated:
+Main customization areas:
 
-- Authentication and password management.
-- Role-based permissions and company access.
-- User registration and invitations.
-- Email and notification workflows.
-- Company profile approvals.
-- Subscription management.
-- Document publishing.
-- Support ticket operations.
-- Market and trading data.
+- [js/data.js](js/data.js): sample companies, KPIs, people, subscriptions, tickets, and reports
+- [js/app.js](js/app.js): navigation, role behavior, company access, storage, workflows, and shared rendering helpers
+- [tailwind.config.js](tailwind.config.js): Tailwind theme configuration
+- [src/input.css](src/input.css): custom CSS and UI styles
+- [js/theme.js](js/theme.js): theme initialization
+- `*.html`: page-specific content and interactions
+- [reports/](reports/): PDF files referenced by sample report data
 
-There is currently no:
+When changing a page, update the sample data and role/navigation behavior together to keep Overview, Market activity, Trade history, and Peer comparison consistent.
 
-- Backend API or server-side business logic.
-- Production authentication or authorization.
-- Database or persistent server-side storage.
-- Live trading or broker integration.
-- Real email delivery service.
-- Production document storage.
-- Server-side audit logging.
+## Known limitations
 
-All sample figures are illustrative and must not be treated as live or verified financial information.
-
-A production implementation requires secure backend services, database persistence, server-side permissions, authentication, document storage and appropriate integrations.
-
----
-
-## 10. Project Status
-
-**Current Status:** Static Frontend Prototype
-
-The project demonstrates the main DeltaBlock LiquidityDash interface, user journeys, company workflows, role-specific navigation and administrative functionality.
-
-It provides a frontend foundation for a future production implementation with a secure backend and persistent database.
-
----
-
-**DeltaBlock LiquidityDash**  
-*Client Portal Frontend Prototype*
+- No server-side authentication or authorization
+- Passwords are not checked or stored securely
+- Emails and invitations are not delivered
+- Payment and subscription changes are simulated
+- Documents can only be stored within browser limits
+- Sample data is not live market data
+- Browser local storage can be modified or cleared
+- Demo state is not synchronized between devices or users
+- Direct URLs do not establish a secure backend session
+- PDF and CSV output is for demonstration only
