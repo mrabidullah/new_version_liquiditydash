@@ -15,7 +15,7 @@
    var vis=ctx.admin?p.companies:p.companies.filter(function(c){return ctx.allowed.indexOf(c)>=0;});
    if(manage){
     if(App.lc(p.email)===self)act='<span class="text-xs text-cap">You</span>';
-    else if(isMgr&&!ctx.admin)act='<span class="text-xs text-cap">Manager</span>';
+    else if(isMgr&&!ctx.admin)act='<span class="text-xs text-cap">Company manager</span>';
     else act=(pend?'<button class="btn btn-s" data-copy="'+p.id+'">Copy invite link</button> ':'<button class="btn btn-s" data-edit="'+p.id+'">Edit access</button> ')+'<button class="btn btn-s btn-d" data-remove="'+p.id+'">'+(pend?'Cancel invite':'Remove')+'</button>';
    }
    return '<tr><td><div class="flex items-center gap-3"><span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-hov text-xs font-semibold text-mut">'+esc(initials(p.name))+'</span><div><div class="font-medium">'+esc(p.name)+(App.lc(p.email)===self?' <span class="text-xs text-cap">(you)</span>':'')+'</div><div class="text-xs text-cap">'+esc(p.email)+'</div></div></div></td><td>'+esc(roleLabel(p,co.id))+'</td><td>'+App.chips(vis)+'</td><td>'+(pend?App.badge('warn','Invitation sent'):App.badge('ok','Active'))+'</td>'+(manage?'<td class="whitespace-nowrap text-right">'+act+'</td>':'')+'</tr>';

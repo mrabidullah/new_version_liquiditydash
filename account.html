@@ -8,7 +8,7 @@ App.mount({page:'account',title:'My account',roles:['client','multi','guest','ad
  var m=App.me(),p=m.person;
  if(!p)return '<div class="card mx-auto mt-10 max-w-lg p-8 text-center"><h1 class="text-xl font-semibold">Account not found</h1><p class="mt-2 text-sm text-mut">Your account record could not be found. Sign in again.</p><a class="btn btn-p mt-6" href="login.html">Back to sign in</a></div>';
  var nm=App.splitName(p),d=pdraft||{first:nm[0],last:nm[1],email:p.email};
- var role=App.typeLabel(p)+(p.type!=='admin'&&p.type!=='guest'&&m.manages.length?' · company manager':'');
+ var role=App.typeLabel(p);
  var cos=p.type==='admin'?'All companies (administrator)':(m.companies.length?m.companies.map(function(i){return D.COMPANIES[i].name;}).join(', '):'None');
  return '<div class="mb-8"><h1 class="page-title">My account</h1><p class="mt-2 text-sm text-mut">Your personal details and password. These changes only affect your own account.</p></div>'+
  '<div class="grid gap-5 lg:grid-cols-2"><section class="card p-6"><h2 class="font-semibold">Personal information</h2><form id="pf" class="mt-4 space-y-4" novalidate><div class="grid gap-4 sm:grid-cols-2">'+fld('first','First name','text',d.first,aerrs.first,'autocomplete="given-name"')+fld('last','Last name','text',d.last,aerrs.last,'autocomplete="family-name"')+'</div>'+fld('email','Email address','email',d.email,aerrs.email,'autocomplete="email"')+'<div class="flex justify-end"><button class="btn btn-p">Save details</button></div></form></section>'+

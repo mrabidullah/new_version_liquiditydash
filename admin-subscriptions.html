@@ -5,43 +5,61 @@
 var D=App.D,esc=App.esc,PLANS=['Liquidity Essentials','Liquidity Plus','Investor Relations'],editId=null;
 var PAGE_NAMES=['overview','market activity','trade history','peer comparison','reports','statements','subscription','company profile','team','support'];
 function fmtIso(x){return x&&x!=='—'?x:'—';}
-function svcText(s){return (s.services||[]).map(function(v){return v[0]+(v[1]?' | '+v[1]:'');}).join('\n');}
-function parseSvc(t){return String(t||'').split(/\r?\n/).map(function(l){return l.trim();}).filter(Boolean).map(function(l){var k=l.indexOf('|');return k<0?[l,'']:[l.slice(0,k).trim(),l.slice(k+1).trim()];});}
+function svcRow(n,sc){return '<div class="svc-row" data-svc><div class="space-y-2"><input class="inp" data-svc-name aria-label="Service name" placeholder="Service, for example Liquidity provision" value="'+esc(n||'')+'"><input class="inp" data-svc-scope aria-label="Scope" placeholder="Scope, for example Continuous two-sided quotes" value="'+esc(sc||'')+'"></div><button type="button" class="btn btn-s btn-d" data-svc-del aria-label="Remove this service">Remove</button></div>';}
 function formHtml(id){
  var subs=App.subs(),s=subs[id],co=D.COMPANIES[id],none=!!s.none,rIso=s.renewIso||App.addIso(D.TODAY,365),sIso=s.startIso||(s.renewIso?App.addIso(s.renewIso,-365):D.TODAY);
  return '<div class="space-y-4 p-6"><div class="rounded-lg border bg-hov p-4 text-sm"><div class="flex flex-wrap items-center justify-between gap-2"><b>'+esc(co.name)+'</b>'+App.badge(s.status[0],s.status[1])+'</div><dl class="mt-3 grid grid-cols-2 gap-3 text-xs"><div><dt class="text-cap">Current plan</dt><dd class="mt-0.5 font-medium text-ink">'+esc(s.plan)+'</dd></div><div><dt class="text-cap">Term</dt><dd class="mt-0.5 font-medium text-ink">'+esc(none?'—':s.term)+'</dd></div><div><dt class="text-cap">Start</dt><dd class="mt-0.5 font-medium text-ink">'+esc(s.start)+'</dd></div><div><dt class="text-cap">End</dt><dd class="mt-0.5 font-medium text-ink">'+esc(s.end)+'</dd></div><div class="col-span-2"><dt class="text-cap">Renewal</dt><dd class="mt-0.5 font-medium text-ink">'+esc(s.renewal)+'</dd></div></dl></div>'+
  '<p class="field-err" id="sf-err" role="alert" hidden></p>'+
+ '<div><label class="lbl" for="s-status">Status</label><select id="s-status" class="inp">'+Object.keys(App.SUB_STATUS).map(function(k){return '<option value="'+k+'"'+((s.statusKey||'active')===k?' selected':'')+'>'+App.SUB_STATUS[k][1]+'</option>';}).join('')+'</select><p class="mt-1 text-xs text-cap">Shown to the client on their Subscription page and in the Latest box on Overview.</p></div>'+
  '<div><label class="lbl" for="s-plan">Plan</label><select id="s-plan" class="inp">'+PLANS.map(function(p){return '<option'+(p===s.plan?' selected':'')+'>'+p+'</option>';}).join('')+'</select><p class="mt-1 text-xs text-cap">The plan is a commercial label. It never changes which pages the client can open.</p></div>'+
  '<div><label class="lbl" for="s-term">Service term</label><input id="s-term" class="inp" value="'+esc(none||s.term==='—'?'Annual service':s.term)+'"></div>'+
  '<div class="grid gap-4 sm:grid-cols-2"><div><label class="lbl" for="s-start">Contract start date</label><input id="s-start" class="inp" type="date" required value="'+sIso+'"></div><div><label class="lbl" for="s-renew">Renewal date</label><input id="s-renew" class="inp" type="date" required value="'+rIso+'"></div></div><p class="-mt-2 text-xs text-cap">The contract end date is the day before the renewal date.</p>'+
  '<div><label class="lbl" for="s-auto">Renewal terms</label><input id="s-auto" class="inp" value="'+esc(s.autoRenew||'Renews automatically unless cancelled 60 days before the end date')+'"></div>'+
- '<div><label class="lbl" for="s-svc">Contracted services</label><textarea id="s-svc" class="inp h-32" placeholder="Service | Scope">'+esc(svcText(s))+'</textarea><p class="mt-1 text-xs text-cap">One per line: Service | Scope. Website pages (Overview, Trade history, Reports and so on) are not services.</p></div></div>';
+ '<fieldset><legend class="lbl">Contract targets</legend><div class="space-y-3"><div class="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border p-3"><label for="s-tim" class="text-sm">Time at minimum spread<span class="block text-xs text-cap">At least, in %</span></label><input id="s-tim" class="inp !w-28" inputmode="decimal" value="'+esc(co.timTarget==null?'':co.timTarget)+'"></div><div class="grid grid-cols-[1fr_auto] items-center gap-3 rounded-lg border p-3"><label for="s-spr" class="text-sm">Average spread<span class="block text-xs text-cap">At most, in bps</span></label><input id="s-spr" class="inp !w-28" inputmode="decimal" value="'+esc(co.sprTarget==null?'':co.sprTarget)+'"></div></div><p class="mt-1 text-xs text-cap">These are the targets the client sees on Overview, Market activity and Subscription.</p></fieldset>'+
+ '<fieldset><legend class="lbl">Contracted services</legend><div id="s-svcs" class="space-y-2">'+(s.services||[]).map(function(v){return svcRow(v[0],v[1]);}).join('')+'</div><button type="button" class="btn btn-s mt-2" data-svc-add>+ Add service</button><p class="mt-1 text-xs text-cap">One row per service. Website pages (Overview, Trade history, Reports and so on) are not services.</p></fieldset></div>';
 }
 App.mount({page:'admin-subscriptions',title:'Subscriptions',roles:['admin'],render:function(ctx){
  var subs=App.subs();
  return '<div class="mb-8"><h1 class="page-title">Subscriptions</h1><p class="mt-2 text-sm text-mut">One subscription per company. Choose Edit to change a company&rsquo;s contract details; clients see them on their Subscription page.</p></div>'+
- '<section class="card overflow-x-auto"><table class="tbl min-w-[860px]"><tr><th>Company</th><th>Plan</th><th>Term</th><th>Start</th><th>End</th><th>Renewal</th><th>Services</th><th>Status</th><th></th></tr>'+D.ORDER.map(function(i){var x=subs[i];return '<tr><td><strong>'+esc(D.COMPANIES[i].name)+'</strong></td><td>'+esc(x.plan)+'</td><td>'+(x.none?'—':esc(x.term))+'</td><td>'+esc(x.start)+'</td><td>'+esc(x.end)+'</td><td>'+esc(x.renewal)+'</td><td>'+(x.none?'—':(x.services||[]).length)+'</td><td>'+App.badge(x.status[0],x.status[1])+'</td><td class="text-right"><button class="btn btn-s" data-edit="'+i+'" aria-label="Edit subscription for '+esc(D.COMPANIES[i].name)+'">Edit</button></td></tr>';}).join('')+'</table></section>';
+ '<section class="card overflow-x-auto"><table class="tbl min-w-[1100px]"><tr><th>Company</th><th>Plan</th><th>Term</th><th>Start</th><th>End</th><th>Renewal</th><th>Contracted service</th><th>Target / scope</th><th>Status</th><th></th></tr>'+D.ORDER.map(function(i){var x=subs[i],c=D.COMPANIES[i],sv=x.none?[]:(x.services||[]),n=Math.max(1,sv.length);
+  function tgt(v){var t=/monitoring/i.test(v[0])&&c.timTarget!=null&&c.sprTarget!=null?'<div class="text-xs text-cap">Targets: time at minimum spread at least '+c.timTarget+'%, average spread at most '+c.sprTarget+' bps</div>':'';return esc(v[1]||'—')+t;}
+  return Array.apply(null,Array(n)).map(function(_,k){var v=sv[k],first=k===0,rs=' rowspan="'+n+'"';
+   return '<tr>'+(first?'<td'+rs+'><strong>'+esc(c.name)+'</strong></td><td'+rs+'>'+esc(x.plan)+'</td><td'+rs+'>'+(x.none?'—':esc(x.term))+'</td><td'+rs+'>'+esc(x.start)+'</td><td'+rs+'>'+esc(x.end)+'</td><td'+rs+'>'+esc(x.renewal)+'</td>':'')+
+    '<td>'+(v?'<strong>'+esc(v[0])+'</strong>':'<span class="text-cap">No services recorded</span>')+'</td><td>'+(v?tgt(v):'—')+'</td><td>'+App.badge(x.status[0],x.status[1])+'</td>'+
+    (first?'<td'+rs+' class="text-right"><button class="btn btn-s" data-edit="'+i+'" aria-label="Edit subscription for '+esc(c.name)+'">Edit</button></td>':'')+'</tr>';}).join('');
+ }).join('')+'</table></section>';
 },extra:function(){
  return '<div id="sub-drawer" class="modal drawer" role="dialog" aria-modal="true" aria-labelledby="sd-t"><form id="sf" class="card drawer-panel" novalidate><div class="flex items-start justify-between gap-3 border-b px-6 py-4"><div><h2 id="sd-t" class="font-semibold">Edit subscription</h2><p id="sd-co" class="text-sm text-cap"></p></div><button type="button" class="btn btn-s" data-close aria-label="Close">&times;</button></div><div id="sd-body" class="flex-1"></div><div class="flex justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-p">Save subscription</button></div></form></div>';
 },after:function(ctx,main,ov){
  var form=ov.querySelector('#sf');
+ form.addEventListener('click',function(e){
+  var add=e.target.closest('[data-svc-add]'),del=e.target.closest('[data-svc-del]');
+  if(add){var box=form.querySelector('#s-svcs');box.insertAdjacentHTML('beforeend',svcRow('',''));var last=box.lastElementChild.querySelector('input');if(last)last.focus();}
+  if(del){var row=del.closest('[data-svc]');if(row)row.remove();}
+ });
  main.querySelectorAll('[data-edit]').forEach(function(b){b.addEventListener('click',function(){
   editId=b.dataset.edit;ov.querySelector('#sd-co').textContent=D.COMPANIES[editId].name;ov.querySelector('#sd-body').innerHTML=formHtml(editId);App.openModal('sub-drawer');});});
  form.addEventListener('submit',function(e){e.preventDefault();
   var err=ov.querySelector('#sf-err');err.hidden=true;
   function bad(m){err.textContent=m;err.hidden=false;App.toast(m,'err');}
   if(!App.can.admin()){bad('Only administrators can change subscriptions.');return;}
-  var id=editId,start=ov.querySelector('#s-start').value,renew=ov.querySelector('#s-renew').value,term=ov.querySelector('#s-term').value.trim(),auto=ov.querySelector('#s-auto').value.trim(),svc=parseSvc(ov.querySelector('#s-svc').value);
+  var id=editId,start=ov.querySelector('#s-start').value,renew=ov.querySelector('#s-renew').value,term=ov.querySelector('#s-term').value.trim(),auto=ov.querySelector('#s-auto').value.trim(),
+   svc=[].slice.call(form.querySelectorAll('[data-svc]')).map(function(r){return [r.querySelector('[data-svc-name]').value.trim(),r.querySelector('[data-svc-scope]').value.trim()];}).filter(function(v){return v[0]||v[1];});
   if(!D.COMPANIES[id]||!start||!renew){bad('Choose both dates.');return;}
   if(renew<=start){bad('Renewal date must be after the start date.');return;}
   if(!term){bad('Enter the service term.');return;}
+  if(svc.some(function(v){return !v[0];})){bad('Give every service a name, or remove the empty row.');return;}
+  var tv=ov.querySelector('#s-tim').value.trim().replace(',','.'),sv=ov.querySelector('#s-spr').value.trim().replace(',','.'),tn=tv===''?null:Number(tv),sn=sv===''?null:Number(sv),hasData=!!D.KPI[id];
+  if((tn!==null&&!(isFinite(tn)&&tn>0&&tn<=100))||(sn!==null&&!(isFinite(sn)&&sn>0))){bad('Targets must be numbers: time at minimum spread between 0 and 100, spread above 0.');return;}
+  if(hasData&&(tn===null||sn===null)){bad('Enter both contract targets for this company.');return;}
   var web=svc.filter(function(v){return PAGE_NAMES.indexOf(v[0].toLowerCase())>=0;});
   if(web.length){bad('“'+web[0][0]+'” is a website page, not a contracted service. Remove it from the list.');return;}
   var subs=App.subs(),x=subs[id],days=App.daysUntil(renew);
   if(x.none)x.none=false;
   x.plan=ov.querySelector('#s-plan').value;x.term=term;x.autoRenew=auto||'Renews annually';x.services=svc;
   x.start=App.fmtDate(start);x.startIso=start;x.end=App.fmtDate(App.addIso(renew,-1));x.renewal=App.fmtDate(renew);x.renewIso=renew;
-  x.status=days<0?['bad','Expired']:days<=60?['warn','Renews soon']:['ok','Active'];
+  x.statusKey=ov.querySelector('#s-status').value;x.status=App.SUB_STATUS[x.statusKey]||App.SUB_STATUS.active;
+  if(tn!==null&&sn!==null){x.targets={tim:tn,spr:sn};D.COMPANIES[id].timTarget=tn;D.COMPANIES[id].sprTarget=sn;}
   App.saveSubs(subs);App.closeModals();ctx.refresh();App.toast('Subscription saved for '+D.COMPANIES[id].name);});
 }});
 })();

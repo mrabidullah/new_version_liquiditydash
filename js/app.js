@@ -22,11 +22,12 @@
     admin: { pid: 'p1', label: 'Admin', name: 'Khan Abid', email: 'khan@gmail.com', companies: [], owner: true, home: 'admin.html', homeName: 'Admin overview', area: 'Admin' }
   };
   var CLIENT_NAV = [['dashboard.html', 'Overview'], ['market.html', 'Market activity'], ['trades.html', 'Trade history'], ['comparison.html', 'Peer comparison'], ['reports.html', 'Reports'], ['accounting.html', 'Statements'], ['subscription.html', 'Subscription'], ['company.html', 'Company profile'], ['team.html', 'Team'], ['tickets.html', 'Support']];
+  var COMPANY_NAV = CLIENT_NAV.filter(function (n) { return n[0] !== 'tickets.html'; });
   var NAV = {
     client: CLIENT_NAV,
     multi: [['companies.html', 'Companies']].concat(CLIENT_NAV),
     guest: [['dashboard.html', 'Overview'], ['market.html', 'Market activity'], ['trades.html', 'Trade history'], ['comparison.html', 'Peer comparison'], ['reports.html', 'Reports'], ['company.html', 'Company profile']],
-    admin: [['admin.html', 'Admin overview'], ['companies.html', 'Companies'], ['signup-links.html', 'Client sign-up links'], ['access-requests.html', 'Access requests'], ['profile-reviews.html', 'Profile reviews'], ['users.html', 'Users'], ['admin-subscriptions.html', 'Subscriptions'], ['data-health.html', 'Data health'], ['access-log.html', 'Access log'], ['tickets.html', 'Support tickets'], ['wireframes.html', 'Screen map']]
+    admin: [['admin.html', 'Admin overview'], ['companies.html', 'Companies'], ['publish.html', 'Publish documents'], ['signup-links.html', 'Client sign-up links'], ['access-requests.html', 'Access requests'], ['profile-reviews.html', 'Profile reviews'], ['users.html', 'Users'], ['admin-subscriptions.html', 'Subscriptions'], ['data-health.html', 'Data health'], ['access-log.html', 'Access log'], ['tickets.html', 'Support tickets'], ['wireframes.html', 'Screen map']]
   };
 
   function defaultSession(role) {
@@ -60,7 +61,42 @@
   function token(prefix) { return (prefix || 't') + '-' + Math.random().toString(36).slice(2, 8); }
   function absUrl(rel) { try { return new URL(rel, location.href).href; } catch (e) { return rel; } }
   function qs(name) { return new URLSearchParams(location.search).get(name); }
-  function typeLabel(p) { return p.type === 'admin' ? 'Admin' : p.type === 'guest' ? 'Guest' : p.type === 'colleague' ? 'Client · colleague' : (p.owner ? 'Client · account owner' : 'Client'); }
+  function typeLabel(p) { return p.type === 'admin' ? 'Admin' : p.type === 'guest' ? 'Guest' : ((p.manages && p.manages.length) ? 'Company manager' : 'Colleague'); }
+  /* Role names shown to the signed-in person: Admin, Guest, Company manager or Colleague. */
+  function roleName(m) { return m.role === 'admin' ? 'Admin' : m.role === 'guest' ? 'Guest' : (m.manages && m.manages.length ? 'Company manager' : 'Colleague'); }
+
+  /* Currency, time zone and date helpers (round 7). Companies default to EUR and UTC; the SGX company carries its own. */
+  function cur(co) { co = co || {}; return { code: co.cur || 'EUR', sym: co.sym || '€', tz: co.tz || 'UTC', tzName: co.tzName || 'UTC' }; }
+  function money(co, v, d) { return cur(co).sym + Number(v).toFixed(d == null ? 3 : d); }
+  function fmtDay(iso) { return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')); }
+  function span(a, b) {
+    var f = function (iso, y) { return new Intl.DateTimeFormat('en-GB', y ? { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } : { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(iso + 'T00:00:00Z')); };
+    return f(a, a.slice(0, 4) !== b.slice(0, 4)) + ' – ' + f(b, true);
+  }
+  function monthsBack(iso, n) { var d = new Date(iso + 'T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() - n); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); }
+  /* Data date, period and time zone shown on every data page; warns when the feed is delayed. */
+  function dataBar(co, periodHtml, warn) {
+    var ok = !co.feed || co.feed[0] === 'ok', c = cur(co);
+    var line = '<div class="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-cap" data-databar>' + (co.feed ? badge(co.feed[0], co.feed[1]) : '') +
+      '<span>Latest data <b class="mono text-ink">' + esc(co.last || 'not available') + '</b></span><span>Period <b class="text-ink">' + periodHtml + '</b></span><span>Times in <b class="text-ink">' + esc(c.tzName) + '</b></span></div>';
+    if (ok || warn === false) return line;
+    return '<div class="card mb-3 flex gap-3 border-l-4 p-4" style="border-left-color:#F2B705" role="status"><span class="bd warn shrink-0 self-start">Data delayed</span><p class="text-sm text-mut">Trade data feed: ' + esc(String(co.feed[1]).toLowerCase()) + '. The latest data is from ' + esc(co.last || 'an unknown time') + ', so recent figures may be incomplete until it catches up.</p></div>' + line;
+  }
+  /* Target status per company (last 30 days): on target, off target or no data. */
+  function targetStatus(id) {
+    var co = D.COMPANIES[id], K = D.KPI[id];
+    if (!co || !K || co.timTarget == null || co.sprTarget == null) return { state: 'none', issues: [] };
+    var k = K['30d'], issues = [];
+    if (k.tim < co.timTarget) issues.push('Time in market ' + k.tim.toFixed(1) + '% (target ' + co.timTarget + '%)');
+    if (k.spr > co.sprTarget) issues.push('Spread ' + k.spr.toFixed(1) + ' bps (target ' + co.sprTarget + ' bps)');
+    return { state: issues.length ? 'off' : 'on', issues: issues };
+  }
+  function targetBadge(t) { return t.state === 'on' ? badge('ok', 'On target') : t.state === 'off' ? badge('warn', 'Off target') : badge('dr', 'No target data'); }
+  /* Ticket status wording differs by viewer: clients see whose turn it is; Deltablock sees what it has to do. */
+  function ticketStatus(status, admin) {
+    if (admin) return TICKET_STATUS[status] || ['dr', status];
+    return status === 'ours' ? ['inf', 'With Deltablock'] : status === 'client' ? ['warn', 'Waiting for your reply'] : (TICKET_STATUS[status] || ['dr', status]);
+  }
   function daysUntil(iso) { return Math.round((Date.parse(iso) - Date.parse(D.TODAY)) / 86400000); }
   function pending() { return store.get('requests', D.REQUESTS).filter(function (r) { return r.status === 'pending'; }).length; }
   function profilePending() { return (store.get('profile-reviews', []) || []).filter(function (r) { return r.status === 'pending'; }).length; }
@@ -153,6 +189,8 @@
     (store.get('companies-extra', []) || []).forEach(function (c) { if (c && c.id && !D.COMPANIES[c.id]) { D.COMPANIES[c.id] = c; D.ORDER.push(c.id); } });
     var ov = store.get('profile-approved', {}) || {};
     Object.keys(ov).forEach(function (id) { if (D.COMPANIES[id]) Object.keys(ov[id]).forEach(function (k) { D.COMPANIES[id][k] = ov[id][k]; }); });
+    var sb = store.get('subs', null) || {};
+    Object.keys(sb).forEach(function (id) { var t = sb[id] && sb[id].targets; if (t && D.COMPANIES[id]) { D.COMPANIES[id].timTarget = t.tim; D.COMPANIES[id].sprTarget = t.spr; } });
   })();
 
   /* One-time migration of data saved by earlier versions. Only touches keys that already exist. */
@@ -381,6 +419,7 @@
 
   /* ---------- companies ---------- */
   function normName(v) { return lc(v).replace(/[^a-z0-9]+/g, ' ').trim(); }
+  var CURRENCIES = { EUR: '€', SGD: 'S$' };
   function createCompany(d) {
     if (!can.admin()) return fail('Only administrators can add companies.');
     var e = {}, name = String(d.name || '').trim().replace(/\s+/g, ' '), legal = String(d.legal || '').trim().replace(/\s+/g, ' '), exch = String(d.exch || '').trim(), code = String(d.code || '').trim().toUpperCase();
@@ -413,11 +452,12 @@
         if (!e.code && lc(c.exch) === lc(exch) && lc(c.code) === lc(code)) e.code = 'Code ' + c.code + ' on ' + c.exch + ' already belongs to ' + c.name + '.';
       });
     }
+    var ccy = CURRENCIES[d.cur] ? d.cur : 'EUR';
     if (Object.keys(e).length) return { ok: false, errors: e, error: 'Please fix the highlighted fields.' };
     var base = code.toLowerCase().replace(/[^a-z0-9]/g, '') || 'co', id = base, n = 1;
     while (D.COMPANIES[id]) { n++; id = base + n; }
     var feeds = { none: ['dr', 'Not connected'], ok: ['ok', 'Up to date'], warn: ['warn', 'Delayed'] };
-    var c = { id: id, name: name, legal: legal, exch: exch, code: code, custom: true, createdAt: today(), createdBy: me().email,
+    var c = { id: id, name: name, legal: legal, exch: exch, code: code, custom: true, cur: ccy, sym: CURRENCIES[ccy], createdAt: today(), createdBy: me().email,
       price: price, vol30: vol, spread30: spr, trades30: null, value30: null, feed: feeds[d.feed] || feeds.none, last: null, timTarget: null, sprTarget: null, fee: null,
       shares: shares, float: flt, insiders: insiders, institutions: institutions, email: email, phone: phone, address: String(d.address || '').trim() };
     var extra = store.get('companies-extra', []) || [];
@@ -431,7 +471,7 @@
   function profileReviews() { return store.get('profile-reviews', []) || []; }
   function pendingReview(companyId) { return profileReviews().filter(function (r) { return r.company === companyId && r.status === 'pending'; })[0]; }
   function submitProfile(companyId, vals) {
-    if (!can.editProfile(companyId)) return fail('Only a manager of this company can submit profile changes.');
+    if (!can.editProfile(companyId)) return fail('Only a company manager of this company can submit profile changes.');
     var co = D.COMPANIES[companyId], e = {}, clean = {};
     PROFILE_FIELDS.forEach(function (f) { clean[f[0]] = String((vals || {})[f[0]] == null ? '' : vals[f[0]]).trim().replace(/\s+/g, ' ').slice(0, f[0] === 'address' ? 200 : 120); });
     if (!clean.legal) e.legal = 'Legal name is required.';
@@ -452,7 +492,7 @@
     store.set('profile-reviews', all); return good({ review: rec });
   }
   function withdrawProfile(companyId) {
-    if (!can.editProfile(companyId)) return fail('Only a manager of this company can withdraw profile changes.');
+    if (!can.editProfile(companyId)) return fail('Only a company manager of this company can withdraw profile changes.');
     var all = profileReviews(), rec = all.filter(function (r) { return r.company === companyId && r.status === 'pending'; })[0];
     if (!rec) return fail('There is nothing pending.');
     rec.status = 'withdrawn'; rec.reviewedLabel = today(); store.set('profile-reviews', all); return good({});
@@ -475,7 +515,84 @@
   }
 
 
+  /* ---------- admin: correct a company's details (applied straight away, no review) ---------- */
+  function updateCompanyAdmin(id, vals) {
+    if (!can.admin()) return fail('Only administrators can correct company details.');
+    var co = D.COMPANIES[id]; if (!co) return fail('Company not found.');
+    var e = {}, clean = {}, keys = [['name', 120], ['code', 20]].concat(PROFILE_FIELDS.map(function (f) { return [f[0], f[0] === 'address' ? 200 : 120]; }));
+    keys.forEach(function (k) { clean[k[0]] = String((vals || {})[k[0]] == null ? '' : vals[k[0]]).trim().replace(/\s+/g, ' ').slice(0, k[1]); });
+    clean.code = clean.code.toUpperCase();
+    if (clean.name.length < 2 || clean.name.length > 60) e.name = 'Enter a display name (2 to 60 characters).';
+    if (!/^[A-Z0-9][A-Z0-9.\-]{0,9}$/.test(clean.code)) e.code = 'Use 1 to 10 letters, numbers, dots or dashes.';
+    if (!clean.legal) e.legal = 'Legal name is required.';
+    if (!clean.exch) e.exch = 'Listed exchange is required.';
+    if (clean.email && !EMAIL_RE.test(clean.email)) e.email = 'Enter a valid email address.';
+    if (clean.phone && !/^[+()\d\s.\-]{5,25}$/.test(clean.phone)) e.phone = 'Use digits, spaces, + ( ) - only.';
+    if (clean.insiders && !/^\d{1,3}(\.\d+)?%?$/.test(clean.insiders)) e.insiders = 'Enter a percentage such as 12%.';
+    if (clean.institutions && !/^\d{1,3}(\.\d+)?%?$/.test(clean.institutions)) e.institutions = 'Enter a percentage such as 48%.';
+    if (clean.shares && !/^[\d][\d,. ]*$/.test(clean.shares)) e.shares = 'Use digits and separators only.';
+    if (clean.float && !/^[\d][\d,. ]*$/.test(clean.float)) e.float = 'Use digits and separators only.';
+    var ccy = CURRENCIES[(vals || {}).cur] ? vals.cur : (co.cur || 'EUR'), pv = String((vals || {}).price == null ? '' : vals.price).trim().replace(/,/g, ''), pn = pv === '' ? null : Number(pv);
+    if (pn !== null && (!isFinite(pn) || pn <= 0)) e.price = 'Enter a price above zero, for example 0.245.';
+    D.ORDER.forEach(function (oid) {
+      if (oid === id) return; var c = D.COMPANIES[oid];
+      if (!e.name && (normName(c.name) === normName(clean.name) || normName(c.legal) === normName(clean.name))) e.name = 'A company called “' + c.name + '” already exists.';
+      if (!e.code && lc(c.exch) === lc(clean.exch) && lc(c.code) === lc(clean.code)) e.code = 'Code ' + c.code + ' on ' + c.exch + ' already belongs to ' + c.name + '.';
+    });
+    if (Object.keys(e).length) return { ok: false, errors: e, error: 'Please fix the highlighted fields.' };
+    var ch = [], ov = store.get('profile-approved', {}) || {}; ov[id] = ov[id] || {};
+    keys.forEach(function (k) { var cur0 = co[k[0]] == null ? '' : String(co[k[0]]); if (clean[k[0]] !== cur0) { ch.push(k[0]); ov[id][k[0]] = clean[k[0]]; co[k[0]] = clean[k[0]]; } });
+    if (ccy !== (co.cur || 'EUR')) { ch.push('cur'); ov[id].cur = ccy; ov[id].sym = CURRENCIES[ccy]; co.cur = ccy; co.sym = CURRENCIES[ccy]; }
+    if (pn !== null && pn !== co.price) { ch.push('price'); ov[id].price = pn; co.price = pn; }
+    if (!ch.length) return fail('Nothing has changed.');
+    store.set('profile-approved', ov); return good({ changed: ch });
+  }
+
+  /* ---------- publishing documents (admin) ---------- */
+  var DOC_LIMIT = 1000000; /* prototype: the PDF is kept in this browser, so keep it small */
+  function docs() { return store.get('docs', []) || []; }
+  function docsFor(companyId, kind) { return docs().filter(function (d) { return d.company === companyId && d.kind === kind; }).sort(function (a, b) { return a.dateIso < b.dateIso ? 1 : a.dateIso > b.dateIso ? -1 : (a.at < b.at ? 1 : -1); }); }
+  /* Reports for a company: the sample history (existing companies only) plus anything an admin has published. A new client starts empty. */
+  function reportsFor(co) {
+    var base = co.custom ? [] : D.REPORTS.map(function (r) { return { title: r[0], period: r[1], dateLabel: r[2], dateIso: isoOf(r[2]) || '', href: r[3], file: true }; });
+    var pub = docsFor(co.id, 'report').map(function (d) { return { id: d.id, title: d.title, period: d.period, dateLabel: fmtDate(d.dateIso), dateIso: d.dateIso, href: d.file && d.file.data, name: d.file && d.file.name, published: true }; });
+    return pub.concat(base).sort(function (a, b) { return a.dateIso < b.dateIso ? 1 : a.dateIso > b.dateIso ? -1 : 0; });
+  }
+  function publishDoc(d) {
+    if (!can.admin()) return fail('Only administrators can publish documents.');
+    var e = {}, kind = d.kind === 'statement' ? 'statement' : d.kind === 'report' ? 'report' : '';
+    if (!kind) e.kind = 'Choose Report or Statement.';
+    if (!d.company || !D.COMPANIES[d.company]) e.company = 'Choose the company this is for.';
+    var title = String(d.title || '').trim().replace(/\s+/g, ' '), period = String(d.period || '').trim().replace(/\s+/g, ' ');
+    if (title.length < 2 || title.length > 90) e.title = 'Enter a title (2 to 90 characters).';
+    if (!period || period.length > 40) e.period = 'Enter the period it covers, for example September 2026.';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.dateIso || '')) || isNaN(Date.parse(d.dateIso))) e.dateIso = 'Choose the publish date.';
+    var f = d.file;
+    if (!f || !f.name) e.file = 'Attach the PDF to publish.';
+    else if (!/\.pdf$/i.test(f.name)) e.file = 'The file must be a PDF.';
+    else if (f.size > DOC_LIMIT) e.file = 'Prototype limit: choose a PDF under 1 MB.';
+    var amount = null, pay = null;
+    if (kind === 'statement') {
+      var a = String(d.amount == null ? '' : d.amount).trim().replace(/,/g, '');
+      amount = Number(a); if (a === '' || !isFinite(amount) || amount < 0) e.amount = 'Enter the amount in EUR, for example 4800.';
+      if (d.pay === 'due') { if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.dueIso || ''))) e.dueIso = 'Choose the due date.'; else pay = ['warn', 'Due ' + fmtDate(d.dueIso)]; }
+      else pay = ['ok', 'Paid'];
+    }
+    if (Object.keys(e).length) return { ok: false, errors: e, error: 'Please fix the highlighted fields.' };
+    var all = docs(), m = me(), rec = { id: newId('DOC', all.length ? all : [{ id: 'DOC0' }]), kind: kind, company: d.company, title: title, period: period, dateIso: d.dateIso, amount: amount, pay: pay,
+      file: { name: f.name, size: f.size, data: f.data || null }, by: m.name, at: new Date().toISOString() };
+    all.unshift(rec); store.set('docs', all); return good({ doc: rec });
+  }
+  function unpublishDoc(id) {
+    if (!can.admin()) return fail('Only administrators can remove published documents.');
+    var all = docs(), r = all.filter(function (x) { return x.id === id; })[0];
+    if (!r) return fail('Document not found.');
+    store.set('docs', all.filter(function (x) { return x.id !== id; })); return good({ doc: r });
+  }
+
+
   /* ---------- tickets: statuses ---------- */
+  var SUB_STATUS = { active: ['ok', 'Active'], ending: ['warn', 'Ending'], ended: ['bad', 'Ended'] };
   var TICKET_STATUS = { ours: ['warn', 'Needs our reply'], client: ['inf', 'Waiting on client'], done: ['ok', 'Resolved'] };
   var TICKET_MIGRATE = { await: 'client', prog: 'ours' }; /* saved tickets from earlier versions */
   var WEBSITE_PAGES = ['overview', 'market activity', 'trade history', 'peer comparison', 'reports', 'statements', 'subscription', 'company profile', 'team', 'support'];
@@ -524,8 +641,9 @@
     var nav = NAV[s.role];
     var activeHref = opts.navFor || (opts.page + '.html');
     var scopedCo = opts.scoped && ctx.co;
-    if (s.role === 'admin' && scopedCo) activeHref = 'companies.html';
-    var items = nav.map(function (n) {
+    var coMode = s.role === 'admin' && !!scopedCo; /* admin inside a company: show that company's pages, with a way back */
+    if (coMode) nav = COMPANY_NAV;
+    var items = (coMode ? '<a href="admin.html">&larr; Admin overview</a><a href="companies.html">&larr; All companies</a><div class="nav-label">Company workspace</div><div class="nav-co">' + esc(ctx.co.name) + '</div>' : '') + nav.map(function (n) {
       var on = n[0] === activeHref;
       var cnt = n[0] === 'access-requests.html' ? pending() : n[0] === 'profile-reviews.html' ? profilePending() : 0;
       var count = cnt ? '<span class="navcount" data-count="' + n[0] + '">' + cnt + '</span>' : '';
@@ -556,7 +674,7 @@
       '<div class="hidden items-center gap-2 text-sm text-cap sm:flex">' + crumb + '</div>' +
       '<div class="ml-auto flex items-center gap-3">' + switcher + themeBtn +
       '<a href="login.html" class="text-sm text-mut hover:underline">Sign out</a>' +
-      '<a href="account.html" class="flex items-center gap-2 border-l pl-3 hover:opacity-80" title="My account" aria-label="My account. Signed in as ' + esc(s.name) + ', ' + esc(r.label) + '"><span class="grid h-8 w-8 shrink-0 place-items-center" style="color:#F2B705" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 20c.35-3.45 2.75-5.5 6.5-5.5s6.15 2.05 6.5 5.5"/></svg></span><div class="hidden leading-tight sm:block"><div class="text-sm font-semibold text-ink">' + esc(s.name) + '</div><div class="text-xs text-cap">' + esc(r.label) + (s.role !== 'admin' && s.role !== 'guest' && !ctx.manages.length ? ' · team member' : s.role !== 'admin' && s.role !== 'guest' ? ' · manager' : '') + '</div></div></a></div></header>' +
+      '<a href="account.html" class="flex items-center gap-2 border-l pl-3 hover:opacity-80" title="My account" aria-label="My account. Signed in as ' + esc(s.name) + ', ' + esc(roleName(ctx)) + '"><span class="grid h-8 w-8 shrink-0 place-items-center" style="color:#F2B705" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 20c.35-3.45 2.75-5.5 6.5-5.5s6.15 2.05 6.5 5.5"/></svg></span><div class="hidden leading-tight sm:block"><div class="text-sm font-semibold text-ink">' + esc(s.name) + '</div><div class="text-xs text-cap">' + esc(roleName(ctx)) + '</div></div></a></div></header>' +
       '<main id="main" class="mx-auto max-w-[1280px] p-6 md:p-8"></main></div></div><div id="overlays"></div><div id="toast" class="toast" role="status" aria-live="polite"></div>';
   }
 
@@ -567,7 +685,7 @@
 
   function noData(ctx) {
     var co = ctx.co, vals = [];
-    if (co.price != null) vals.push(['Reference price', '&euro;' + Number(co.price).toFixed(3)]);
+    if (co.price != null) vals.push(['Reference price', money(co, co.price)]);
     if (co.vol30 != null) vals.push(['Volume, last 30 days', num(co.vol30) + ' shares']);
     if (co.spread30 != null) vals.push(['Average spread, last 30 days', Number(co.spread30).toFixed(1) + ' bps']);
     var extra = vals.length ? '<dl class="mx-auto mt-5 grid max-w-sm gap-2 text-left text-sm">' + vals.map(function (v) { return '<div class="flex justify-between gap-4 border-t pt-2"><dt class="text-cap">' + v[0] + '</dt><dd class="mono">' + v[1] + '</dd></div>'; }).join('') + '</dl><p class="mt-2 text-xs text-cap">Values entered by an administrator when the company was added.</p>' : '';
@@ -577,6 +695,28 @@
   function noCompany(ctx) {
     return '<div class="card mx-auto mt-10 max-w-lg p-8 text-center"><h1 class="text-xl font-semibold">No company access yet</h1><p class="mt-2 text-sm text-mut">Your account is not linked to a company. Contact your administrator.</p><a class="btn btn-p mt-6" href="login.html">Back to sign in</a></div>';
   }
+
+  /* ---------- page states (loading, error, empty) for the prototype ---------- */
+  function sk(w, h, extra) { return '<div class="sk" style="width:' + w + ';height:' + h + 'px;' + (extra || '') + '"></div>'; }
+  function skeleton(kind, title) {
+    var cards = '<div class="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">' + [1, 2, 3, 4].map(function () { return '<div class="card p-4">' + sk('50%', 12) + sk('70%', 28, 'margin-top:12px') + sk('40%', 10, 'margin-top:10px') + '</div>'; }).join('') + '</div>';
+    var block = function (h) { return '<div class="card p-5">' + sk('30%', 16) + sk('100%', h, 'margin-top:16px') + '</div>'; };
+    var body = kind === 'table'
+      ? '<div class="card p-5">' + sk('100%', 36) + [1, 2, 3, 4, 5, 6].map(function () { return sk('100%', 20, 'margin-top:14px'); }).join('') + '</div>'
+      : kind === 'chart' ? '<div class="mb-5">' + block(260) + '</div><div class="grid gap-5 md:grid-cols-3">' + [1, 2, 3].map(function () { return block(70); }).join('') + '</div>'
+      : cards + '<div class="grid gap-5 lg:grid-cols-3"><div class="space-y-5 lg:col-span-2">' + block(120) + block(120) + '</div>' + block(180) + '</div>';
+    return '<div role="status" aria-busy="true" aria-live="polite"><span class="sr-only">Loading ' + esc(title) + '</span><div class="mb-6"><h1 class="page-title">' + esc(title) + '</h1><div class="mt-3">' + sk('min(420px,80%)', 14) + '</div></div>' + body + '</div>';
+  }
+  function errorCard(ctx, title) {
+    var act = ctx.role === 'client' || ctx.role === 'multi' ? '<a class="btn" href="tickets.html?new=1&subject=' + encodeURIComponent('Problem loading ' + title) + '">Contact support</a>' : ctx.role === 'admin' ? '<a class="btn" href="data-health.html">Open Data health</a>' : '';
+    return '<div class="mb-6"><h1 class="page-title">' + esc(title) + '</h1></div><div class="card mx-auto max-w-xl border-l-4 p-8" style="border-left-color:var(--bad)" role="alert"><span class="bd bad">Something went wrong</span><h2 class="mt-3 text-xl font-semibold">We could not load ' + esc(title) + '</h2><p class="mt-2 text-sm text-mut">The data did not arrive, so nothing is shown rather than figures that may be wrong. Nothing has been lost or changed. Try again in a moment.</p><div class="mt-6 flex flex-wrap gap-2"><button type="button" class="btn btn-p" data-retry>Try again</button>' + act + '</div><p class="mt-4 text-xs text-cap">Prototype example of a failed request. Reference: ERR-503-' + esc((ctx.co && ctx.co.code) || 'PAGE') + '</p></div>';
+  }
+  function stateBar(cur) {
+    var o = [['', 'Normal'], ['loading', 'Loading'], ['error', 'Error'], ['empty', 'Empty']];
+    return '<div class="card mt-8 flex flex-wrap items-center justify-between gap-3 border-dashed p-3 text-xs text-cap" data-state-bar><span>Prototype: preview this page as</span><div class="seg" role="group" aria-label="Page state">' + o.map(function (x) { return '<button type="button" data-state="' + x[0] + '" aria-pressed="' + (x[0] === cur) + '">' + x[1] + '</button>'; }).join('') + '</div></div>';
+  }
+  function genericEmpty(opts) { return '<div class="mb-6"><h1 class="page-title">' + esc(opts.title) + '</h1></div><div class="card mx-auto max-w-lg p-8 text-center"><span class="bd dr">Nothing here yet</span><p class="mt-3 text-sm text-mut">There is nothing to show on this page yet.</p></div>'; }
+  function goState(v) { var u = new URL(location.href); if (v) u.searchParams.set('state', v); else u.searchParams.delete('state'); location.href = u.toString(); }
 
   function buildCtx() {
     var s = session(), r = resolve(s), cur = store.get('company');
@@ -590,6 +730,7 @@
 
   function mount(opts) {
     var root = document.getElementById('root');
+    var qc = qs('company'); if (qc && can.view(qc)) store.set('company', qc); /* e.g. admin overview links straight into one company */
     var ctx = buildCtx();
     document.title = (opts.title || '') + ' | Deltablock';
     var ok = !opts.roles || opts.roles.indexOf(ctx.role) >= 0;
@@ -602,8 +743,17 @@
       ok = !opts.roles || opts.roles.indexOf(ctx.role) >= 0;
       if (!ok) { main.innerHTML = denied(ctx); overlays.innerHTML = ''; return; }
       if (opts.scoped && !ctx.co) { main.innerHTML = noCompany(ctx); overlays.innerHTML = ''; return; }
+      var st = opts.states ? (qs('state') || '') : '';
+      if (st === 'loading' || st === 'error' || st === 'empty') {
+        main.innerHTML = (st === 'loading' ? skeleton(opts.skeleton || 'cards', opts.title) : st === 'error' ? errorCard(ctx, opts.title) : (opts.empty ? opts.empty(ctx) : (opts.needsData && ctx.co ? noData(ctx) : genericEmpty(opts)))) + stateBar(st);
+        overlays.innerHTML = '';
+        main.querySelectorAll('[data-state]').forEach(function (b) { b.addEventListener('click', function () { goState(b.getAttribute('data-state')); }); });
+        var rt = main.querySelector('[data-retry]'); if (rt) rt.addEventListener('click', function () { goState(''); });
+        return;
+      }
       if (opts.needsData && ctx.co && !D.KPI[ctx.co.id]) { main.innerHTML = noData(ctx); overlays.innerHTML = ''; return; }
-      main.innerHTML = opts.render(ctx);
+      main.innerHTML = opts.render(ctx) + (opts.states ? stateBar('') : '');
+      if (opts.states) main.querySelectorAll('[data-state]').forEach(function (b) { b.addEventListener('click', function () { goState(b.getAttribute('data-state')); }); });
       overlays.innerHTML = typeof opts.extra === 'function' ? opts.extra(ctx) : (opts.extra || '');
       if (opts.after) opts.after(ctx, main, overlays);
     }
@@ -619,13 +769,14 @@
   }
 
   window.App = { D: D, store: store, ROLES: ROLES, NAV: NAV, session: session, login: login, setSession: setSession, defaultSession: defaultSession,
-    esc: esc, num: num, badge: badge, chips: chips, logo: logo, today: today, addDays: addDays, token: token, absUrl: absUrl, qs: qs, typeLabel: typeLabel,
+    esc: esc, num: num, badge: badge, chips: chips, logo: logo, today: today, addDays: addDays, token: token, absUrl: absUrl, qs: qs, typeLabel: typeLabel, roleName: roleName, cur: cur, money: money, fmtDay: fmtDay, span: span, monthsBack: monthsBack, dataBar: dataBar, targetStatus: targetStatus, targetBadge: targetBadge, ticketStatus: ticketStatus, SUB_STATUS: SUB_STATUS,
+    updateCompanyAdmin: updateCompanyAdmin, docs: docs, docsFor: docsFor, reportsFor: reportsFor, publishDoc: publishDoc, unpublishDoc: unpublishDoc, DOC_LIMIT: DOC_LIMIT,
     daysUntil: daysUntil, pending: pending, rng: rng, MEASURES: MEASURES, position: position, spark: spark, fmtM: fmtM, seedOf: seedOf, series: series, fmtDate: fmtDate, addIso: addIso, copy: copy, toast: toast, openModal: openModal, closeModals: closeModals, mount: mount,
     people: people, savePeople: savePeople, links: links, saveLinks: function (l) { store.set('links', l); },
     can: can, me: me, resolve: resolve, personByEmail: personByEmail, loginEmail: loginEmail, switchCompany: switchCompany, EMAIL_RE: EMAIL_RE, lc: lc,
     linkState: linkState, matchCompany: matchCompany, createLink: createLink, revokeLink: revokeLink, registerFromLink: registerFromLink, inviteByToken: inviteByToken, acceptInvite: acceptInvite, DUP_MSG: DUP_MSG,
     teamOf: teamOf, managersOf: managersOf, inviteMember: inviteMember, updateMemberAccess: updateMemberAccess, removeMember: removeMember, setAccessAdmin: setAccessAdmin, removePerson: removePerson, addAdmin: addAdmin,
-    createCompany: createCompany, splitName: splitName, isoOf: isoOf, fmtIso: fmtDate, PROFILE_FIELDS: PROFILE_FIELDS, profileReviews: profileReviews, pendingReview: pendingReview, submitProfile: submitProfile, withdrawProfile: withdrawProfile, reviewProfile: reviewProfile, profilePending: profilePending,
+    createCompany: createCompany, CURRENCIES: CURRENCIES, splitName: splitName, isoOf: isoOf, fmtIso: fmtDate, PROFILE_FIELDS: PROFILE_FIELDS, profileReviews: profileReviews, pendingReview: pendingReview, submitProfile: submitProfile, withdrawProfile: withdrawProfile, reviewProfile: reviewProfile, profilePending: profilePending,
     requests: function () { return store.get('requests', D.REQUESTS); }, saveRequests: function (r) { store.set('requests', r); },
     subs: function () {
       var x = store.get('subs', D.SUB);
@@ -634,6 +785,8 @@
         var s = x[id], d = D.SUB[id];
         delete s.doc; /* the contract document is never shown */
         if (s.none) return;
+        if (!s.statusKey) s.statusKey = (s.status && /ended|expired/i.test(s.status[1])) ? 'ended' : (s.status && /ending/i.test(s.status[1])) ? 'ending' : 'active';
+        s.status = SUB_STATUS[s.statusKey] || SUB_STATUS.active;
         s.services = Array.isArray(s.services) ? s.services : [];
         if (s.services.some(function (v) { return WEBSITE_PAGES.indexOf(lc(v[0])) >= 0; })) s.services = d ? d.services.map(function (v) { return v.slice(); }) : s.services.filter(function (v) { return WEBSITE_PAGES.indexOf(lc(v[0])) < 0; });
         if (!s.startIso) s.startIso = (d && d.start === s.start && d.startIso) || isoOf(s.start) || (s.renewIso ? addIso(s.renewIso, -365) : null);

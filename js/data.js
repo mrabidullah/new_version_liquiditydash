@@ -4,17 +4,17 @@ window.DBT_DATA = (function () {
 
   var COMPANIES = {
     c1: { id: 'c1', name: 'Company 1', exch: 'XETRA', code: 'C1', price: 0.842, vol30: 184200, spread30: 14.2, trades30: 1284, value30: '€2.84M',
-      feed: ['ok', 'Up to date'], last: '23 Oct · 14:32 UTC', timTarget: 85, sprTarget: 20, fee: 4800,
+      feed: ['ok', 'Up to date'], last: '23 Oct 2026 · 14:32 UTC', timTarget: 85, sprTarget: 20, fee: 4800,
       legal: 'Company 1 AG', shares: '120,000,000', float: '85,000,000', insiders: '12%', institutions: '48%',
       email: 'contact@company1.example', phone: '+49 69 000 1000', address: 'Hauptstrasse 1, 60311 Frankfurt, Germany' },
     c2: { id: 'c2', name: 'Company 2', exch: 'Euronext', code: 'C2', price: 1.264, vol30: 212840, spread30: 17.8, trades30: 1486, value30: '€3.91M',
-      feed: ['warn', 'Delayed 2h'], last: '23 Oct · 12:18 UTC', timTarget: 85, sprTarget: 18, fee: 6400,
+      feed: ['warn', 'Delayed 2h'], last: '23 Oct 2026 · 12:18 UTC', timTarget: 85, sprTarget: 18, fee: 6400,
       legal: 'Company 2 N.V.', shares: '96,500,000', float: '61,200,000', insiders: '9%', institutions: '55%',
       email: 'contact@company2.example', phone: '+31 20 000 2000', address: 'Damrak 20, 1012 Amsterdam, Netherlands' },
-    elite: { id: 'elite', name: 'elite', exch: 'XETRA', code: 'ELT', price: 2.108, vol30: 85560, spread30: 12.6, trades30: 612, value30: '€1.74M',
-      feed: ['ok', 'Up to date'], last: '23 Oct · 14:29 UTC', timTarget: 85, sprTarget: 16, fee: 5600,
-      legal: 'elite Holding SE', shares: '48,000,000', float: '30,400,000', insiders: '21%', institutions: '40%',
-      email: 'contact@elite.example', phone: '+49 89 000 3000', address: 'Maximilianstrasse 8, 80539 Munich, Germany' }
+    elite: { id: 'elite', name: 'Company 3', exch: 'SGX Catalist', code: 'ELT', price: 0.245, cur: 'SGD', sym: 'S$', tz: 'SGT', tzName: 'Singapore time (SGT, UTC+8)', tick: 0.005, vol30: 85560, spread30: 12.6, trades30: 612, value30: 'S$0.20M',
+      feed: ['ok', 'Up to date'], last: '23 Oct 2026 · 16:41 SGT', timTarget: 85, sprTarget: 16, fee: 5600,
+      legal: 'elite Holdings Ltd', shares: '48,000,000', float: '30,400,000', insiders: '21%', institutions: '40%',
+      email: 'contact@elite.example', phone: '+65 6000 3000', address: '12 Marina View, Singapore 018961' }
   };
   var ORDER = ['c1', 'c2', 'elite'];
 
@@ -51,12 +51,12 @@ window.DBT_DATA = (function () {
      services = [name, contracted scope]. Targets come from COMPANIES[].timTarget / sprTarget so every page quotes the same numbers.
      Website pages (Overview, Trade history, Reports, ...) are NOT subscription services: the plan never decides which pages a user can open. */
   var SUB = {
-    c1: { plan: 'Liquidity Essentials', term: 'Annual service', start: '01 Mar 2026', startIso: '2026-03-01', end: '28 Feb 2027', renewal: '01 Mar 2027', renewIso: '2027-03-01', status: ['ok', 'Active'], autoRenew: 'Renews automatically unless cancelled 60 days before the end date',
+    c1: { plan: 'Liquidity Essentials', term: 'Annual service', start: '01 Mar 2026', startIso: '2026-03-01', end: '28 Feb 2027', renewal: '01 Mar 2027', renewIso: '2027-03-01', status: ['ok', 'Active'], statusKey: 'active', autoRenew: 'Renews automatically unless cancelled 60 days before the end date',
       services: [['Liquidity provision', 'Continuous two-sided quotes in Company 1 shares on XETRA'], ['Spread and time-in-market monitoring', 'Daily coverage'], ['Liquidity reporting', 'Monthly liquidity review']] },
-    c2: { plan: 'Liquidity Plus', term: 'Annual service', start: '15 Nov 2025', startIso: '2025-11-15', end: '14 Nov 2026', renewal: '15 Nov 2026', renewIso: '2026-11-15', status: ['warn', 'Renews soon'], autoRenew: 'Renews automatically unless cancelled 60 days before the end date',
+    c2: { plan: 'Liquidity Plus', term: 'Annual service', start: '15 Nov 2025', startIso: '2025-11-15', end: '14 Nov 2026', renewal: '15 Nov 2026', renewIso: '2026-11-15', status: ['ok', 'Active'], statusKey: 'active', autoRenew: 'Renews automatically unless cancelled 60 days before the end date',
       services: [['Liquidity provision', 'Continuous two-sided quotes in Company 2 shares on Euronext, intraday coverage'], ['Spread and time-in-market monitoring', 'Intraday coverage'], ['Liquidity reporting', 'Monthly review and quarterly trading summary'], ['Performance reviews', 'Quarterly review with Deltablock']] },
-    elite: { plan: 'Investor Relations', term: 'Annual service', start: '01 Jul 2026', startIso: '2026-07-01', end: '30 Jun 2027', renewal: '30 Jun 2027', renewIso: '2027-06-30', status: ['ok', 'Active'], autoRenew: 'Renews automatically unless cancelled 60 days before the end date',
-      services: [['Liquidity provision', 'Continuous two-sided quotes in elite shares on XETRA'], ['Spread and time-in-market monitoring', 'Daily coverage'], ['Liquidity reporting', 'Monthly liquidity review'], ['Shareholder analysis', 'Quarterly']] }
+    elite: { plan: 'Investor Relations', term: 'Annual service', start: '01 Jul 2026', startIso: '2026-07-01', end: '30 Jun 2027', renewal: '30 Jun 2027', renewIso: '2027-06-30', status: ['ok', 'Active'], statusKey: 'active', autoRenew: 'Renews automatically unless cancelled 60 days before the end date',
+      services: [['Liquidity provision', 'Continuous two-sided quotes in Company 3 shares on SGX Catalist'], ['Spread and time-in-market monitoring', 'Daily coverage'], ['Liquidity reporting', 'Monthly liquidity review'], ['Shareholder analysis', 'Quarterly']] }
   };
 
   /* Market activity sample figures that sit next to KPI (volumes and shares come from KPI so Overview and Market activity agree).
@@ -127,7 +127,7 @@ window.DBT_DATA = (function () {
   var ACCESS_LOG = [
     ['Khan', 'Abid', 'khan@gmail.com', 'Admin'], ['Aisha', 'Khan', 'aisha.khan@gmail.com', 'Company 1'], ['Omar', 'Siddiqui', 'omar@elite.com', 'elite'],
     ['Diego', 'Alvarez', 'diego@acme.co', 'Company 2'], ['Mia', 'Fischer', 'mia.fischer@company1.example', 'Company 1'], ['Priya', 'Shah', 'priya.shah@acme.co', 'Company 2'],
-    ['Xavier', 'Young', 'xy@gmail.com', 'Admin'], ['Marco', 'Rossi', 'marco@rossi-advisory.example', 'Company 2'], ['Diego', 'Alvarez', 'diego@acme.co', 'elite'], ['Aisha', 'Khan', 'aisha.khan@gmail.com', 'Company 1']
+    ['Xavier', 'Young', 'xy@gmail.com', 'Admin'], ['Marco', 'Rossi', 'marco@rossi-advisory.example', 'Company 2'], ['Diego', 'Alvarez', 'diego@acme.co', 'Company 3'], ['Aisha', 'Khan', 'aisha.khan@gmail.com', 'Company 1']
   ];
 
   var FEEDS = [
@@ -135,8 +135,8 @@ window.DBT_DATA = (function () {
     ['c1', 'Reference prices', '23 Oct · 14:30 UTC', '15 min', '412', ['ok', 'Up to date']],
     ['c2', 'Trades', '23 Oct · 12:18 UTC', '15 min', '986', ['warn', 'Delayed']],
     ['c2', 'Reference prices', '23 Oct · 14:28 UTC', '15 min', '398', ['ok', 'Up to date']],
-    ['elite', 'Trades', '23 Oct · 14:29 UTC', '15 min', '756', ['ok', 'Up to date']],
-    ['elite', 'Reference prices', '23 Oct · 14:31 UTC', '15 min', '240', ['ok', 'Up to date']]
+    ['elite', 'Trades', '23 Oct · 16:41 SGT', '15 min', '756', ['ok', 'Up to date']],
+    ['elite', 'Reference prices', '23 Oct · 16:43 SGT', '15 min', '240', ['ok', 'Up to date']]
   ];
 
   return { TODAY: TODAY, COMPANIES: COMPANIES, ORDER: ORDER, KPI: KPI, PEER_GROUPS: PEER_GROUPS, SUB: SUB, REPORTS: REPORTS, LINKS: LINKS, REQUESTS: REQUESTS,

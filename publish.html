@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Publish documents | Deltablock</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@200&family=IBM+Plex+Mono:wght@500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/style.css"><script src="js/theme.js"></script></head>
+<body><div id="root"></div><script src="js/data.js"></script><script src="js/app.js"></script>
+<script>
+(function(){
+var D=App.D,esc=App.esc,done=null,removeId=null;
+function fld(id,label,input,hint,span){return '<div'+(span?' class="md:col-span-2"':'')+'><label class="lbl" for="pd-'+id+'">'+label+'</label>'+input+(hint?'<p class="mt-1 text-xs text-cap">'+hint+'</p>':'')+'<p class="field-err" id="pd-'+id+'-err" role="alert" hidden></p></div>';}
+function coName(id){return D.COMPANIES[id]?D.COMPANIES[id].name:id;}
+App.mount({page:'publish',title:'Publish documents',roles:['admin'],render:function(ctx){
+ var type=App.qs('type')==='statement'?'statement':'report',co0=D.COMPANIES[App.qs('company')]?App.qs('company'):D.ORDER[0],all=App.docs();
+ var ok=done?'<div class="card mb-6 border-[#F2B705] p-5"><div class="flex flex-wrap items-center justify-between gap-3"><div><div class="font-semibold">Published &ldquo;'+esc(done.title)+'&rdquo; to '+esc(coName(done.company))+'</div><p class="text-sm text-cap">It is now on the '+(done.kind==='report'?'Reports':'Statements')+' page for everyone at the company who can open it.</p></div><div class="flex flex-wrap gap-2"><button type="button" class="btn btn-p" data-view>View as the client sees it</button><button type="button" class="btn" data-again>Publish another</button></div></div></div>':'';
+ var form='<form id="pd" class="card p-6 lg:col-span-2" novalidate><p class="field-err mb-4" id="pd-form-err" role="alert" hidden></p>'+
+  '<fieldset class="mb-5"><legend class="lbl">What are you publishing?</legend><div class="grid gap-2 sm:grid-cols-2"><label class="check-row"><input type="radio" name="pd-kind" value="report"'+(type==='report'?' checked':'')+'> <span><b>Report</b><span class="block text-xs text-cap">Goes on Reports. Everyone with access sees it, guests included.</span></span></label><label class="check-row"><input type="radio" name="pd-kind" value="statement"'+(type==='statement'?' checked':'')+'> <span><b>Statement or invoice</b><span class="block text-xs text-cap">Goes on Statements. Guests cannot see statements.</span></span></label></div></fieldset>'+
+  '<div class="grid gap-x-5 gap-y-4 md:grid-cols-2">'+
+  fld('company','Company','<select id="pd-company" class="inp">'+D.ORDER.map(function(i){return '<option value="'+i+'"'+(i===co0?' selected':'')+'>'+esc(D.COMPANIES[i].name)+'</option>';}).join('')+'</select>','',1)+
+  fld('title','Title','<input id="pd-title" class="inp" autocomplete="off" placeholder="e.g. Monthly liquidity review">','',1)+
+  fld('period','Period it covers','<input id="pd-period" class="inp" autocomplete="off" placeholder="e.g. October 2026">')+
+  fld('dateIso','Publish date','<input id="pd-dateIso" type="date" class="inp" value="'+D.TODAY+'">')+
+  '<div class="grid gap-x-5 gap-y-4 md:col-span-2 md:grid-cols-3" id="pd-st"'+(type==='statement'?'':' hidden')+'>'+fld('amount','Amount (EUR)','<input id="pd-amount" class="inp" inputmode="decimal" placeholder="e.g. 4800">')+fld('pay','Payment status','<select id="pd-pay" class="inp"><option value="paid">Paid</option><option value="due">Due</option></select>')+'<div id="pd-due-wrap" hidden>'+fld('dueIso','Due date','<input id="pd-dueIso" type="date" class="inp">')+'</div></div>'+
+  fld('file','PDF file','<input id="pd-file" type="file" accept=".pdf,application/pdf" class="inp">','PDF only. Prototype limit: 1 MB, because the file is kept in this browser.',1)+
+  '</div><div class="mt-6 flex flex-wrap justify-end gap-2 border-t pt-4"><button type="reset" class="btn" id="pd-reset">Clear</button><button class="btn btn-p" id="pd-go">Publish</button></div></form>';
+ var preview='<section class="card h-fit p-5"><h2 class="font-semibold">What the client will see</h2><p class="text-sm text-cap" id="pv-where"></p><div class="mt-3 overflow-x-auto rounded-lg border"><table class="tbl" id="pv-table"></table></div><p class="mt-3 text-sm text-mut" id="pv-aud"></p><p class="mt-2 text-xs text-cap">It goes live as soon as you publish. Use Remove below to take it down again.</p></section>';
+ var list=all.length?'<table class="tbl min-w-[760px]"><tr><th>Document</th><th>Type</th><th>Company</th><th>Period</th><th>Date</th><th>Published by</th><th></th></tr>'+all.map(function(d){return '<tr><td><strong>'+esc(d.title)+'</strong><div class="text-xs text-cap">'+esc(d.file&&d.file.name||'')+'</div></td><td>'+(d.kind==='report'?'Report':'Statement')+'</td><td>'+esc(coName(d.company))+'</td><td>'+esc(d.period)+'</td><td>'+esc(App.fmtDate(d.dateIso))+'</td><td>'+esc(d.by)+'</td><td class="text-right"><button class="btn btn-s btn-d" data-remove="'+d.id+'">Remove</button></td></tr>';}).join('')+'</table>':'<p class="p-5 text-sm text-cap">Nothing has been published from here yet. Documents you publish appear in this list.</p>';
+ return '<div class="mb-8"><h1 class="page-title">Publish documents</h1><p class="mt-2 text-sm text-mut">Add a report or a statement to one company&rsquo;s workspace. Clients see it on their Reports or Statements page.</p></div>'+ok+'<div class="mb-8 grid gap-5 lg:grid-cols-3">'+form+preview+'</div><section class="card overflow-x-auto"><div class="border-b px-5 py-4"><h2 class="font-semibold">Published from here</h2></div>'+list+'</section>';
+},extra:function(){
+ return '<div id="remove-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="rt"><div class="card w-full max-w-md"><div class="border-b px-6 py-4"><h2 id="rt" class="font-semibold">Remove published document</h2></div><p id="remove-text" class="p-6 text-sm text-mut"></p><div class="flex justify-end gap-2 border-t px-6 py-4"><button type="button" class="btn" data-close>Cancel</button><button id="remove-go" class="btn btn-p">Remove</button></div></div></div>';
+},after:function(ctx,main,ov){
+ var form=main.querySelector('#pd');
+ function v(id){return form.querySelector('#pd-'+id).value;}
+ function kind(){return form.querySelector('[name=pd-kind]:checked').value;}
+ function preview(){
+  var k=kind(),cid=v('company'),t=v('title').trim()||(k==='report'?'Title of the report':'Title of the document'),per=v('period').trim()||'Period',dt=v('dateIso')?App.fmtDate(v('dateIso')):'—';
+  main.querySelector('#pv-where').textContent=(k==='report'?'Reports':'Statements')+' · '+coName(cid);
+  var tb=main.querySelector('#pv-table');
+  if(k==='report')tb.innerHTML='<tr><th>Report</th><th>Period</th><th>Published</th></tr><tr><td><strong>'+esc(t)+'</strong></td><td>'+esc(per)+'</td><td>'+esc(dt)+'</td></tr>';
+  else{var a=Number(v('amount').replace(/,/g,'')),pay=v('pay')==='due'?'Due '+(v('dueIso')?App.fmtDate(v('dueIso')):'…'):'Paid';tb.innerHTML='<tr><th>Document</th><th>Period</th><th>Issued</th><th>Amount</th><th>Status</th></tr><tr><td>'+esc(t)+'</td><td>'+esc(per)+'</td><td>'+esc(dt)+'</td><td class="mono">'+(isFinite(a)&&v('amount')!==''?'€'+a.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}):'—')+'</td><td>'+esc(pay)+'</td></tr>';}
+  var n=App.people().filter(function(p){return p.type!=='admin'&&p.status==='active'&&p.companies.indexOf(cid)>=0&&(k==='report'||p.type!=='guest');}).length;
+  main.querySelector('#pv-aud').innerHTML='Visible straight away to <b class="text-ink">'+n+' '+(n===1?'person':'people')+'</b> at '+esc(coName(cid))+(k==='report'?', guests included.':'. Guests cannot see statements.');
+  main.querySelector('#pd-st').hidden=k!=='statement';main.querySelector('#pd-due-wrap').hidden=v('pay')!=='due'||k!=='statement';
+ }
+ form.addEventListener('input',preview);form.addEventListener('change',preview);
+ form.addEventListener('reset',function(){setTimeout(preview,0);});
+ preview();
+ function clear(){form.querySelectorAll('.field-err').forEach(function(p){p.hidden=true;p.textContent='';});form.querySelectorAll('[aria-invalid]').forEach(function(i){i.removeAttribute('aria-invalid');});}
+ form.addEventListener('submit',function(e){e.preventDefault();clear();
+  var fi=form.querySelector('#pd-file').files[0];
+  function go(data){
+   var res=App.publishDoc({kind:kind(),company:v('company'),title:v('title'),period:v('period'),dateIso:v('dateIso'),amount:v('amount'),pay:v('pay'),dueIso:v('dueIso'),file:fi?{name:fi.name,size:fi.size,data:data}:null});
+   if(!res.ok){var first=null;Object.keys(res.errors||{}).forEach(function(k){var p=form.querySelector('#pd-'+k+'-err'),i=form.querySelector('#pd-'+k);if(p){p.textContent=res.errors[k];p.hidden=false;}if(i){i.setAttribute('aria-invalid','true');if(!first)first=i;}});
+    var fe=form.querySelector('#pd-form-err');fe.textContent=res.error;fe.hidden=false;if(first)first.focus();return;}
+   done=res.doc;ctx.refresh();window.scrollTo(0,0);App.toast('Published to '+coName(res.doc.company));
+  }
+  if(fi&&fi.size<=App.DOC_LIMIT){var fr=new FileReader();fr.onload=function(){go(fr.result);};fr.onerror=function(){go(null);};fr.readAsDataURL(fi);}else go(null);
+ });
+ var vw=main.querySelector('[data-view]');if(vw)vw.addEventListener('click',function(){App.switchCompany(done.company);location.href=done.kind==='report'?'reports.html':'accounting.html';});
+ var ag=main.querySelector('[data-again]');if(ag)ag.addEventListener('click',function(){done=null;ctx.refresh();});
+ main.querySelectorAll('[data-remove]').forEach(function(b){b.addEventListener('click',function(){var d=App.docs().filter(function(x){return x.id===b.dataset.remove;})[0];if(!d)return;removeId=d.id;ov.querySelector('#remove-text').textContent='Remove “'+d.title+'” from '+coName(d.company)+'? Clients will no longer see it.';App.openModal('remove-modal');});});
+ ov.querySelector('#remove-go').addEventListener('click',function(){var res=App.unpublishDoc(removeId);App.closeModals();if(!res.ok){App.toast(res.error,'err');return;}done=null;ctx.refresh();App.toast('Document removed');});
+}});
+})();
+</script></body></html>

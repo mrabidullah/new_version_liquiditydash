@@ -327,3 +327,14 @@ details>summary:focus-visible{outline:2px solid #F2B705;outline-offset:2px;borde
 .c-oth{fill:var(--oth)}.c-del{fill:#F2B705}
 .modal.drawer{place-items:stretch end;padding:0}
 .drawer-panel{display:flex;flex-direction:column;height:100%;width:100%;max-width:28rem;border-radius:0;overflow-y:auto}
+
+/* ---- Round 7: admin inside a company, page states, chart sizing ---- */
+.side .nav-label{margin:1rem 1.5rem .25rem;font-size:.6875rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#7F8AA0}
+.side .nav-co{margin:0 1.5rem .5rem;font-size:.875rem;font-weight:600;color:#fff}
+.sk{border-radius:6px;background:linear-gradient(90deg,var(--hov) 25%,var(--line) 37%,var(--hov) 63%);background-size:400% 100%;animation:sk-pulse 1.4s ease infinite}
+@keyframes sk-pulse{0%{background-position:100% 50%}100%{background-position:0 50%}}
+@media(prefers-reduced-motion:reduce){.sk{animation:none}}
+.c-del{stroke:var(--ink);stroke-width:.6}
+.c-lbl{fill:var(--mut);font-size:11px;font-weight:600;letter-spacing:.02em}
+.pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;border-top:1px solid var(--line);padding:.75rem 1rem}
+.svc-row{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:start;padding:.75rem;border:1px solid var(--line);border-radius:8px}
